@@ -196,7 +196,8 @@ function httpsImage(url, pixels) {
   try {
     const image = new URL(address);
     if (image.protocol !== "https:" || !image.hostname.endsWith(".music.126.net")) return address;
-    // The host shrinks after download. Ask the CDN for the smaller asset first.
+    // Older hosts use this fallback. Hosts that support imageSizes replace
+    // param with the size needed by the view before downloading.
     const supplied = /^(\d+)y(\d+)$/.exec(image.searchParams.get("param") || "");
     if (!supplied || Math.max(Number(supplied[1]), Number(supplied[2])) > pixels) {
       image.searchParams.set("param", `${pixels}y${pixels}`);

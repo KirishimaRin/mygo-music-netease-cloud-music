@@ -1,6 +1,6 @@
 # 网易云音乐 · MyGo Music 插件
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](plugin.json)
+[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)](plugin.json)
 [![Min Host Version](https://img.shields.io/badge/MyGo%20Music-%E2%89%A5%200.1.8-brightgreen.svg)](https://github.com/egoist/mygo-music)
 [![Language](https://img.shields.io/badge/language-JavaScript%20(ESM)-yellow.svg)](index.js)
 
@@ -55,7 +55,9 @@
   - 支持可选将歌曲播放开始事件同步回网易云云端。
 
 ### 性能与网络优化
-- **图片 CDN 动态分辨率**：全站图片根据展现视图拼接网易云 CDN 动态尺寸参数（头像/侧栏 128px、卡片 320px/400px、播放页大图 640px），封面加载体积压缩 64%，首屏秒开。
+- **图片 CDN 动态分辨率与宿主适配**：
+  - 在 `plugin.json` 中声明 `imageSizes` 规则，支持新版 MyGo Music 宿主在下载前按界面视图的实际尺寸动态重写 `param` 裁剪参数。
+  - 针对旧版宿主平滑回退至插件内置动态尺寸规则（头像/侧栏 128px、卡片 320px/400px、播放页大图 640px），封面加载体积压缩 64%，首屏秒开。
 - **短时请求复用**：首页与每日推荐/排行榜之间的公共数据实现 60 秒内存防抖复用，按会话严格隔离。
 - **大歌单并发分页**：百首以上大型歌单采用首包轻量元数据 + 后续分批并发请求详情策略，大幅缩减页面加载耗时。
 - **防死锁加载**：延迟读取宿主存储，避免插件启动初始化阶段与宿主全局插件锁产生竞争。
@@ -74,7 +76,7 @@
 2. 进入 **设置 (Settings) → 插件 (Plugins) → 添加插件 (+)**。
 3. 选择以下任一方式进行安装：
    - **从 GitHub 安装（推荐）**：粘贴本插件的 GitHub 仓库地址。
-   - **从 Zip 文件安装**：选择发行版打包的 `netease-cloud-music-0.1.0.zip`。
+   - **从 Zip 文件安装**：选择发行版打包的 `netease-cloud-music-0.1.1.zip`。
    - **从文件夹安装（开发调试）**：选中包含 `plugin.json` 的项目根目录。
 4. 安装完成后，在插件列表中找到 **网易云音乐 (NetEase Cloud Music)**，点击 **登录**，使用手机网易云音乐 App 扫码并确认即可。
 
