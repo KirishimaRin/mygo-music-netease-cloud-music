@@ -2,8 +2,11 @@
 
 ## 当前交付
 
-- 插件 ID 为 `netease-cloud-music`，版本为 `0.1.1`，最低宿主版本为 MyGo Music 0.1.8。
-- 发布结构为根目录下的 `plugin.json`、`index.js` 和 `locales/zh-CN.json`。本地安装包为 `dist/netease-cloud-music-0.1.1.zip`。改动后重新打包。
+- 插件 ID 为 `netease-cloud-music`，版本为 `0.1.2`，最低宿主版本为 MyGo Music 0.1.20。
+- 发布结构为根目录下的 `plugin.json`、`index.js` 和 `locales/zh-CN.json`。本地安装包为 `dist/netease-cloud-music-0.1.2.zip`。改动后重新打包。
+- 仓库发布从 0.1.0 起算。下文的 0.2.0 到 0.6.4 是发布前的本地测试版本号，`dist/` 里同名的旧包只用于本地，不要按它们推断发布版本。
+- 0.1.2 修复首页单个分区失败导致整页报错、超时与异常响应混成网络错误、音质降级跳过极高、设置为空时报错，并缓存喜欢歌单的曲目顺序供翻页复用。
+- 0.1.2 把最低宿主版本提到 0.1.20。封面 URL 改用 `param={size}y{size}`，删除 `imageSizes` 和插件内的固定尺寸分档。
 - Git 跟踪源码、文档和翻译，`dist/` 用于本地打包。发布后可在 MyGo Music 里从 GitHub 仓库安装。
 - 0.1.1 在 `plugin.json` 声明 `imageSizes` 支持按视图实际尺寸覆盖图片 `param` 参数（适配上游 PR #39），保留 `httpsImage` 兜底兼容旧宿主。
 - 0.6.4 合并首页与日推页、首页与榜单页的重复请求，成功的非空结果可复用 60 秒。日推缓存按会话隔离。根据已知歌单曲目数选择详情加载策略。
@@ -37,7 +40,11 @@
 - MyGo Music 0.1.11 的重命名歌单弹窗复用 `Save`，简体中文显示成「收藏」。提交动作仍调用 `RenamePlaylist`。修正时应给重命名弹窗单独使用「保存」文案。
 - MyGo Music 先下载、解码封面，再按视图缩小。0.6.1 在网易云图片 CDN 的 URL 上指定尺寸。侧栏和头像 128 像素，榜单和歌单卡片 320 像素，播客卡片 400 像素，详情和正在播放保留 640 像素。保留原 URL 的查询参数及已有的较小尺寸。
 
+- 本机 PATH 没有 node、python、tar。冒烟测试可在 DSH 的 run_code 里用模拟 `host` 和 `fetch` 导入 `index.js`。打包用 PowerShell 的 `Compress-Archive`。
+
 ## 验收
+
+- 0.1.2 用模拟宿主和模拟接口验证：推荐歌单失败时首页仍返回官方榜单，全部失败时报网络错误；超时和 HTML 响应各自提示；无损不可用时第二次请求拿到极高；喜欢歌单三页共 70 首只请求一次歌单列表和详情，红心后重新读取；设置返回 undefined 时不报错。
 
 - 真实网易云接口通过四种搜索、推荐、榜单、200 首歌的歌单、专辑、歌手、歌词、试听识别、CDN 音频读取和二维码创建及轮询测试。
 - 通过 0.1.8 宿主模拟 801 → 802 → 803，验证了读取多条 Set-Cookie、核验账号、重启恢复会话、歌单分页、喜欢的歌曲顺序、登录后的音质请求和退出清理。
@@ -56,4 +63,13 @@
 - v0.1.19 与上游主分支 `c360a84` 的简体中文重命名歌单弹窗仍共用收藏动作的 `Save` 译文。修复时给重命名确认单独的翻译键。
 - 日推有两条入口。首页日推卡打开宿主原生歌曲页，已有日历封面和播放按钮。侧栏 `navigation.page` 打开的是普通 `Browse`，只提供标题、曲目数和列表。提交建议时以复用原生歌曲页头为范围，并关联 [#25](https://github.com/egoist/mygo-music/issues/25)。
 - 插件原生设置控件已有 [#27](https://github.com/egoist/mygo-music/issues/27)。自定义页面过期后重开刷新已由 [#35](https://github.com/egoist/mygo-music/pull/35) 合并。按显示尺寸请求封面及解码预算已由 [#39](https://github.com/egoist/mygo-music/pull/39) 合并。这两个改动均晚于 v0.1.19。先在包含对应改动的版本验收，再决定是否补充播客订阅即时刷新或封面性能数据。
-- 插件已在 `plugin.json` 声明 `imageSizes`，让支持 #39 的宿主按视图尺寸覆盖 `*.music.126.net` URL 的 `param`。旧宿主会忽略该字段，仍使用 `httpsImage` 给出的缩略图和详情尺寸。#31 中隐藏到托盘后的内存增长属于上游待排查项。
+- #31 中隐藏到托盘后的内存增长属于上游待排查项。
+
+## 上游复核（2026-11-07，v0.1.20）
+
+- v0.1.20 包含 #35、#39，并由 [#45](https://github.com/egoist/mygo-music/commit/ebc23e0) 删除了 `imageSizes`。宿主改为替换图片 URL 里的 `{size}` 或 `%7Bsize%7D`，未指定尺寸时按 600 像素。0.1.1 声明的 `imageSizes` 在 0.1.20 上无效。0.1.2 改用 URL 占位符。`URL.searchParams.set` 会把花括号编码成 `%7B`/`%7D`，宿主两种写法都认。
+- 0.1.20 之前的宿主会把 `{size}` 原样发给 CDN，所以 `minAppVersion` 必须是 0.1.20。不要再给 URL 写固定尺寸兜底，否则宿主不会替换。
+- [#47](https://github.com/egoist/mygo-music/commit/70de23e) 修复了模块顶层读 storage 和 setting 的死锁，以及重命名按钮显示「收藏」。插件保留延迟读取，代价为零。
+- [#25](https://github.com/egoist/mygo-music/issues/25) 已按不计划关闭。侧栏日推页无法复用原生歌曲页头，两个日推入口维持现状。
+- [#27](https://github.com/egoist/mygo-music/issues/27) 仍未合并，设置项继续用文本框。
+- #35 的订阅分组即时刷新和 `{size}` 封面尚未在 0.1.20 应用内实测。

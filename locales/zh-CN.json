@@ -40,5 +40,7 @@
   "This page is unavailable.": "此页面不可用。",
   "This item is unavailable.": "此内容不可用。",
   "The full track is unavailable for this account or region.": "当前账号或地区无法播放这首歌的完整版。",
-  "This audio format is unsupported.": "播放器暂不支持此音频格式。"
+  "This audio format is unsupported.": "播放器暂不支持此音频格式。",
+  "NetEase Cloud Music took too long to respond. Try again.": "网易云音乐响应超时，请重试。",
+  "NetEase Cloud Music returned an unexpected response.": "网易云音乐返回了无法识别的内容。"
 }

@@ -7,12 +7,16 @@ const commentPageSize = 20;
 const podcastPreviewSize = 24;
 const songBatchSize = 300;
 const sessionKey = "session";
+const requestTimeout = 8000;
+// Batches of 300 song details are large responses.
+const songBatchTimeout = 15000;
 const t = host.t;
 
 let session;
 let signInAttempt = 0;
 let likedSongs;
 let heartStation;
+let favoriteIds;
 const playlistOrders = new Map();
 const playlistWrites = new Map();
 const sharedBrowseReads = new Map();
@@ -24,8 +28,12 @@ function fail(code, message) {
   throw error;
 }
 
+function setting(key) {
+  return String(host.setting(key) ?? "").trim().toLowerCase();
+}
+
 function currentSession() {
-  // The host holds its plugin lock while evaluating the module.
+  // Read on first use. Hosts before 0.1.20 deadlocked on top-level storage reads.
   if (session === undefined) session = host.storage.get(sessionKey) || null;
   return session;
 }
@@ -35,6 +43,7 @@ function saveSession(value) {
   else host.storage.remove(sessionKey);
   session = value;
   likedSongs = undefined;
+  favoriteIds = undefined;
   heartStation = undefined;
   sharedBrowseReads.delete("daily");
   playlistOrders.clear();
@@ -43,7 +52,7 @@ function saveSession(value) {
 
 // NetEase's desktop EAPI envelope. Keep the request path and hash input in
 // sync with the form body. See api-enhanced's util/crypto.js.
-async function request(path, data, auth, endpoint = origin) {
+async function request(path, data, auth, { endpoint = origin, timeout = requestTimeout } = {}) {
   const reporting = endpoint === logOrigin;
   const header = {
     os: reporting ? "osx" : "pc",
@@ -63,15 +72,22 @@ async function request(path, data, auth, endpoint = origin) {
   if (reporting) {
     headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36";
   }
-  return post(endpoint + "/eapi/" + path.slice(5), "params=" + params, headers);
+  return post(endpoint + "/eapi/" + path.slice(5), "params=" + params, headers, timeout);
 }
 
-async function post(url, body, headers) {
+function failRequest(error) {
+  if (error?.name === "TimeoutError") fail("network", "NetEase Cloud Music took too long to respond. Try again.");
+  fail("network", "Could not reach NetEase Cloud Music. Try again.");
+}
+
+async function post(url, body, headers, timeout = requestTimeout) {
+  let response;
+  let result;
   try {
-    const response = await fetch(url, {
+    response = await fetch(url, {
       method: "POST",
       redirect: "error",
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(timeout),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         "User-Agent": `Mozilla/5.0 (Windows NT 10.0; Win64; x64) NeteaseMusic/${appVersion}`,
@@ -79,18 +95,25 @@ async function post(url, body, headers) {
       },
       body,
     });
-    const result = await response.json();
-    if (!response.ok && (typeof result?.code !== "number" || result.code === 200)) {
-      throw new Error("HTTP " + response.status);
-    }
-    return { body: result, cookies: result.code === 803 ? response.headers.getSetCookie() : [] };
-  } catch {
-    fail("network", "Could not reach NetEase Cloud Music. Try again.");
+  } catch (error) {
+    failRequest(error);
   }
+  try {
+    result = await response.json();
+  } catch (error) {
+    if (error?.name === "TimeoutError" || error?.name === "AbortError") failRequest(error);
+    // Risk control and gateway errors can answer with an HTML page.
+    fail("api", "NetEase Cloud Music returned an unexpected response.");
+  }
+  if (!result || typeof result !== "object") fail("api", "NetEase Cloud Music returned an unexpected response.");
+  if (!response.ok && (typeof result.code !== "number" || result.code === 200)) {
+    fail("api", "NetEase Cloud Music could not complete this request.");
+  }
+  return { body: result, cookies: result.code === 803 ? response.headers.getSetCookie() : [] };
 }
 
-async function api(path, data = {}, auth = currentSession()) {
-  const { body } = await request(path, data, auth);
+async function api(path, data = {}, auth = currentSession(), timeout = requestTimeout) {
+  const { body } = await request(path, data, auth, { timeout });
   return checked(body);
 }
 
@@ -120,7 +143,7 @@ function toAccount(profile) {
   return {
     id: String(profile.userId),
     name: profile.nickname,
-    imageUrl: httpsImage(profile.avatarUrl, 128),
+    imageUrl: httpsImage(profile.avatarUrl),
   };
 }
 
@@ -190,18 +213,15 @@ export async function signIn() {
   fail("expired", "The sign-in code expired. Try again for a new code.");
 }
 
-function httpsImage(url, pixels) {
+function httpsImage(url) {
   const address = (url || "").replace(/^http:/, "https:");
   if (!address) return "";
   try {
     const image = new URL(address);
     if (image.protocol !== "https:" || !image.hostname.endsWith(".music.126.net")) return address;
-    // Older hosts use this fallback. Hosts that support imageSizes replace
-    // param with the size needed by the view before downloading.
-    const supplied = /^(\d+)y(\d+)$/.exec(image.searchParams.get("param") || "");
-    if (!supplied || Math.max(Number(supplied[1]), Number(supplied[2])) > pixels) {
-      image.searchParams.set("param", `${pixels}y${pixels}`);
-    }
+    // MyGo Music 0.1.20 replaces {size} with the pixels each view shows the
+    // picture at, so rows don't download covers thousands of pixels across.
+    image.searchParams.set("param", "{size}y{size}");
     return image.href;
   } catch {
     return address;
@@ -212,7 +232,7 @@ function toArtist(row) {
   return {
     id: String(row.id),
     name: row.name,
-    imageUrl: httpsImage(row.picUrl || row.img1v1Url, 320),
+    imageUrl: httpsImage(row.picUrl || row.img1v1Url),
     following: !!(row.followed ?? row.subed),
   };
 }
@@ -222,7 +242,7 @@ function toAlbum(row) {
   return {
     id: String(row.id),
     name: row.name,
-    imageUrl: httpsImage(row.picUrl || row.blurPicUrl, 640),
+    imageUrl: httpsImage(row.picUrl || row.blurPicUrl),
     artists: artists.map(toArtist),
   };
 }
@@ -239,7 +259,7 @@ function toTrack(row) {
   };
 }
 
-function toPlaylist(row, auth, coverSize = 320) {
+function toPlaylist(row, auth) {
   const id = String(row.id);
   if (Number.isInteger(row.trackCount) && row.trackCount > 0) {
     // A hint from cards or the sidebar, used only to size the detail request.
@@ -252,7 +272,7 @@ function toPlaylist(row, auth, coverSize = 320) {
   return {
     id,
     name: row.name,
-    imageUrl: httpsImage(row.coverImgUrl || row.picUrl, coverSize),
+    imageUrl: httpsImage(row.coverImgUrl || row.picUrl),
     description: row.description || "",
     owner: row.creator?.nickname || "",
     trackCount: row.trackCount || 0,
@@ -265,7 +285,7 @@ function toShow(row) {
   return {
     id: String(row.id),
     name: row.name,
-    imageUrl: httpsImage(row.picUrl, 400),
+    imageUrl: httpsImage(row.picUrl),
     description: row.desc || "",
     publisher: row.dj?.nickname || "",
     episodeCount: row.programCount || 0,
@@ -280,7 +300,7 @@ function toEpisode(row, show) {
     name: row.name,
     showId: show.id,
     duration: row.duration || row.mainSong?.duration || 0,
-    album: { id: "", name: show.name, imageUrl: httpsImage(row.coverUrl, 640) || show.imageUrl },
+    album: { id: "", name: show.name, imageUrl: httpsImage(row.coverUrl) || show.imageUrl },
     artists: show.publisher ? [{ id: "", name: show.publisher }] : [],
     description: row.description || "",
     published: row.createTime > 0 ? new Date(row.createTime).toISOString().slice(0, 10) : "",
@@ -347,13 +367,13 @@ export async function recent() {
 
 export async function played({ id }) {
   const auth = currentSession();
-  if (!auth || episodeIds(id) || host.setting("syncHistory").trim().toLowerCase() !== "on") return;
+  if (!auth || episodeIds(id) || setting("syncHistory") !== "on") return;
   // The host notifies us when playback begins. It supplies no elapsed time.
   const logs = JSON.stringify([{
     action: "startplay",
     json: { id: numericId(id), type: "song", mainsite: "1", mainsiteWeb: "1" },
   }]);
-  const { body } = await request("/api/feedback/weblog", { logs }, auth, logOrigin);
+  const { body } = await request("/api/feedback/weblog", { logs }, auth, { endpoint: logOrigin });
   checked(body);
 }
 
@@ -404,7 +424,7 @@ export async function home() {
     ? dailyTracks(auth).catch(() => [])
     : [];
   const [recommended, tracks, today, charts] = await Promise.all([
-    api("/api/personalized/playlist", { limit: 30, total: true, n: 1000 }, null),
+    api("/api/personalized/playlist", { limit: 30, total: true, n: 1000 }, null).catch(() => null),
     daily,
     auth ? dailyPlaylists(auth).catch(() => []) : [],
     chartPlaylists().catch(() => []),
@@ -420,9 +440,10 @@ export async function home() {
     sections.push({ title: t("Official Charts"), playlists: charts.slice(0, 4), morePage: "charts" });
   }
   const dailyIds = new Set(auth === session ? today.map((row) => row.id) : []);
-  const playlists = (recommended.result || []).map((row) => toPlaylist(row))
+  const playlists = (recommended?.result || []).map((row) => toPlaylist(row))
     .filter((row) => !dailyIds.has(row.id));
   if (playlists.length) sections.push({ title: t("Recommended Playlists"), playlists });
+  if (!recommended && !sections.length) fail("network", "Could not reach NetEase Cloud Music. Try again.");
   return { sections };
 }
 
@@ -626,7 +647,7 @@ export async function playlists() {
     if (session !== auth) return [];
     const rows = data.playlist || [];
     const size = result.size;
-    for (const row of rows) result.set(String(row.id), toPlaylist(row, auth, 128));
+    for (const row of rows) result.set(String(row.id), toPlaylist(row, auth));
     if (!data.more || result.size === size) break;
     offset += rows.length;
   }
@@ -645,7 +666,7 @@ async function tracksById(ids, auth, initial = []) {
     const requests = [];
     for (let offset = start; offset < Math.min(start + 3 * songBatchSize, missing.length); offset += songBatchSize) {
       const c = JSON.stringify(missing.slice(offset, offset + songBatchSize).map((id) => ({ id })));
-      requests.push(api("/api/v3/song/detail", { c }, auth));
+      requests.push(api("/api/v3/song/detail", { c }, auth, songBatchTimeout));
     }
     for (const data of await Promise.all(requests)) {
       for (const row of data.songs || []) songs.set(String(row.id), row);
@@ -664,7 +685,7 @@ export async function playlist({ id }) {
   }
   const embedded = row.tracks || [];
   const ids = (row.trackIds || embedded).map((track) => track.id);
-  const summary = toPlaylist(row, auth, 640);
+  const summary = toPlaylist(row, auth);
   const tracks = await tracksById(ids, auth, embedded);
   if (summary.mine && session === auth) {
     playlistOrders.set(summary.id, { ids: ids.map(String), visible: tracks.map((track) => track.id) });
@@ -735,6 +756,7 @@ function editPlaylistTracks(id, op, trackIds) {
     if (session === auth) {
       playlistOrders.delete(pid);
       likedSongs = undefined;
+      favoriteIds = undefined;
     }
   });
 }
@@ -769,7 +791,10 @@ export function movePlaylistTrack({ id, from, to }) {
     let at = 0;
     const ids = remote.map((id) => displayed.has(id) ? visible[at++] : id);
     await updatePlaylistTracks(pid, "update", ids.map(numericId), auth);
-    if (session === auth) playlistOrders.set(pid, { ids, visible });
+    if (session === auth) {
+      playlistOrders.set(pid, { ids, visible });
+      favoriteIds = undefined;
+    }
   });
 }
 
@@ -824,7 +849,10 @@ export async function like({ id, on }) {
     like: String(on),
     time: "3",
   }, auth);
-  if (session === auth) likedSongs = undefined;
+  if (session === auth) {
+    likedSongs = undefined;
+    favoriteIds = undefined;
+  }
 }
 
 export async function likeEpisode({ id, on }) {
@@ -836,6 +864,23 @@ export async function likeEpisode({ id, on }) {
   }, auth);
 }
 
+// The favorites order, cached briefly so later pages of liked songs skip two requests.
+function favoriteTrackIds(auth, fresh) {
+  if (!fresh && favoriteIds?.auth === auth && favoriteIds.until > Date.now()) return favoriteIds.result;
+  const entry = { auth, until: Date.now() + 45_000 };
+  entry.result = (async () => {
+    const favorites = await favoritePlaylist(auth);
+    if (!favorites) return null;
+    const { playlist: row } = await playlistDetail(favorites.id, auth, 0);
+    return { pid: String(favorites.id), ids: (row.trackIds || []).map((track) => String(track.id)) };
+  })().catch((error) => {
+    if (favoriteIds === entry) favoriteIds = undefined;
+    throw error;
+  });
+  favoriteIds = entry;
+  return entry.result;
+}
+
 async function favoritePlaylist(auth) {
   const { playlist: rows } = await userPlaylists(auth, 0);
   return (rows || []).find((row) => row.specialType === 5 && String(row.userId ?? row.creator?.userId) === auth.userId);
@@ -844,13 +889,12 @@ async function favoritePlaylist(auth) {
 export async function liked({ offset = 0 }) {
   const auth = needSession();
   // The built-in favorites playlist keeps the listener's order.
-  const favorites = await favoritePlaylist(auth);
+  const favorites = await favoriteTrackIds(auth, offset === 0);
   if (!favorites) return { tracks: [], more: false };
-  const { playlist: row } = await playlistDetail(favorites.id, auth, 0);
-  const ids = (row.trackIds || []).slice(offset, offset + pageSize).map((track) => track.id);
+  const ids = favorites.ids.slice(offset, offset + pageSize);
   const tracks = await tracksById(ids, auth);
   if (session !== auth) return { tracks: [], more: false };
-  return { tracks, more: offset + ids.length < (row.trackIds || []).length };
+  return { tracks, more: offset + ids.length < favorites.ids.length };
 }
 
 function timedTranslations(lrc, lines) {
@@ -940,7 +984,7 @@ export async function comments({ trackId, offset = 0 }) {
     comments: rows.map((row) => ({
       id: String(row.commentId),
       author: row.user?.nickname || "",
-      avatarUrl: httpsImage(row.user?.avatarUrl, 128),
+      avatarUrl: httpsImage(row.user?.avatarUrl),
       text: row.content,
       time: row.time,
       likes: row.likedCount || 0,
@@ -973,13 +1017,16 @@ async function streamAt(id, level, auth) {
 export async function stream({ id, quality }) {
   const episode = episodeIds(id);
   const audioId = numericId(episode ? episode[2] : id);
-  const preference = host.setting("quality").trim().toLowerCase();
+  const preference = setting("quality");
   const defaultLevel = quality === "lossless" ? "lossless" : quality === "high" ? "exhigh" : "standard";
   let level = ["standard", "higher", "exhigh", "lossless", "hires"].includes(preference) ? preference : defaultLevel;
   const auth = currentSession();
   let audio = await streamAt(audioId, level, auth);
-  if (!audio && level !== "standard" && session === auth) {
-    level = "standard";
+  // Try exhigh before standard so accounts without lossless keep 320k.
+  const fallbacks = ["lossless", "hires"].includes(level) ? ["exhigh", "standard"] : level === "standard" ? [] : ["standard"];
+  for (const lower of fallbacks) {
+    if (audio || session !== auth) break;
+    level = lower;
     audio = await streamAt(audioId, level, auth);
   }
   if (!audio) {

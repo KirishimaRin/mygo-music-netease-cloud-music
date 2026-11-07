@@ -1,7 +1,7 @@
 # 网易云音乐 · MyGo Music 插件
 
-[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)](plugin.json)
-[![Min Host Version](https://img.shields.io/badge/MyGo%20Music-%E2%89%A5%200.1.8-brightgreen.svg)](https://github.com/egoist/mygo-music)
+[![Version](https://img.shields.io/badge/version-0.1.2-blue.svg)](plugin.json)
+[![Min Host Version](https://img.shields.io/badge/MyGo%20Music-%E2%89%A5%200.1.20-brightgreen.svg)](https://github.com/egoist/mygo-music)
 [![Language](https://img.shields.io/badge/language-JavaScript%20(ESM)-yellow.svg)](index.js)
 
 为 [MyGo Music](https://github.com/egoist/mygo-music) 打造的全功能网易云音乐扩展插件。通过手机网易云音乐 App 扫码登录，即可在 MyGo Music 中无缝畅听每日推荐、私人 FM、播客、歌单及官方排行榜，享受逐字歌词、评论互动与高品质音频体验。
@@ -22,7 +22,7 @@
 - **试听拦截**：智能识别 VIP 试听限制（`freeTrialInfo`），对不可用音源明确提示，避免将试听片段误作为完整曲目播放。
 - **音质偏好配置**：
   - 支持在插件设置中指定偏好档位：`standard`（标准）、`higher`（较高）、`exhigh`（极高）、`lossless`（无损/FLAC）、`hires`（Hi-Res）。
-  - 根据账号权限智能降级协商，并无缝映射到 MyGo Music 宿主的 `standard` / `high` / `lossless` 缓存体系中。
+  - 无损或 Hi-Res 不可用时依次降到极高、标准，并无缝映射到 MyGo Music 宿主的 `standard` / `high` / `lossless` 缓存体系中。
 
 ### 发现与个性化音乐
 - **为你推荐（首页）**：
@@ -55,19 +55,17 @@
   - 支持可选将歌曲播放开始事件同步回网易云云端。
 
 ### 性能与网络优化
-- **图片 CDN 动态分辨率与宿主适配**：
-  - 在 `plugin.json` 中声明 `imageSizes` 规则，支持新版 MyGo Music 宿主在下载前按界面视图的实际尺寸动态重写 `param` 裁剪参数。
-  - 针对旧版宿主平滑回退至插件内置动态尺寸规则（头像/侧栏 128px、卡片 320px/400px、播放页大图 640px），封面加载体积压缩 64%，首屏秒开。
+- **封面按显示尺寸加载**：网易云图片 URL 带 `param={size}y{size}`，MyGo Music 按每个视图的实际像素填入尺寸，列表里不再下载上千像素的原图。旧版固定尺寸方案实测首页 16 张封面从约 2.92 MB 降到 1.06 MB。
 - **短时请求复用**：首页与每日推荐/排行榜之间的公共数据实现 60 秒内存防抖复用，按会话严格隔离。
-- **大歌单并发分页**：百首以上大型歌单采用首包轻量元数据 + 后续分批并发请求详情策略，大幅缩减页面加载耗时。
-- **防死锁加载**：延迟读取宿主存储，避免插件启动初始化阶段与宿主全局插件锁产生竞争。
+- **大歌单并发分页**：百首以上大型歌单采用首包轻量元数据 + 后续分批并发请求详情策略，实测 638 首歌单比首包拉取 500 首更快。
+- **网络容错**：首页任一分区失败不影响其他分区；超时与异常响应分别提示；大批量歌曲详情使用更长的超时。
 
 ---
 
 ## 安装方法
 
 ### 运行要求
-- **宿主版本**：[MyGo Music v0.1.8](https://github.com/egoist/mygo-music/releases) 或更高版本。
+- **宿主版本**：[MyGo Music v0.1.20](https://github.com/egoist/mygo-music/releases) 或更高版本。更早的宿主不会替换封面 URL 里的 `{size}`，封面无法加载。
 - **平台支持**：Windows / macOS / Linux（由 MyGo Music 宿主保证跨平台支持）。
 
 ### 安装步骤
@@ -76,9 +74,15 @@
 2. 进入 **设置 (Settings) → 插件 (Plugins) → 添加插件 (+)**。
 3. 选择以下任一方式进行安装：
    - **从 GitHub 安装（推荐）**：粘贴本插件的 GitHub 仓库地址。
-   - **从 Zip 文件安装**：选择发行版打包的 `netease-cloud-music-0.1.1.zip`。
+   - **从 Zip 文件安装**：选择发行版打包的 `netease-cloud-music-0.1.2.zip`。
    - **从文件夹安装（开发调试）**：选中包含 `plugin.json` 的项目根目录。
 4. 安装完成后，在插件列表中找到 **网易云音乐 (NetEase Cloud Music)**，点击 **登录**，使用手机网易云音乐 App 扫码并确认即可。
+
+---
+
+## 验收状态
+
+匿名接口、播放、歌词、评论和扫码登录已用真实网易云接口验证。以下功能只在模拟账号下测试过，真实账号仍待在应用中验收：歌单增删改与排序、歌手关注、红心与点赞、播客订阅、心动模式、每日推荐和私人 FM 的实际试听。
 
 ---
 
