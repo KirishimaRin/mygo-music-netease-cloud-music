@@ -19,6 +19,14 @@
 - 0.2.0 新增原生每日推荐和私人 FM 导航及播放页评论。MyGo Music 自动把评论放到「选歌」右边，侧栏的外观和迷你播放器属于宿主界面。
 - 基准宿主为 [MyGo Music v0.1.8](https://github.com/egoist/mygo-music/tree/v0.1.8)，端点参考 [api-enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced/tree/4a7d557326d16d2f1e5172ee69c9471eb3a50173)。
 
+## 发布流程
+
+1. 改 `plugin.json` 的 `version`，同步 README 徽章与安装包文件名，在 CHANGELOG 顶部加新版本条目。
+2. 打包：只放 `plugin.json`、`index.js` 和 `locales/zh-CN.json`，三者位于 zip 根目录。本机没有 tar，用 PowerShell 复制到临时目录后 `Compress-Archive -Path "$tmp\*" -DestinationPath dist\netease-cloud-music-<版本>.zip -Force`。
+3. 提交并推送 `main`。
+4. 在发布提交上打标签并建 Release，附上 zip，说明取 CHANGELOG 对应版本一节：`gh release create v<版本> dist\netease-cloud-music-<版本>.zip --title v<版本> --notes-file <说明文件>`。标签只给仓库发布的版本打，从 v0.1.2 开始。`dist/` 里 0.2.0 到 0.6.4 的本地测试包不要发布。
+5. 本机 gh 已用 KirishimaRin 账号登录，带 `repo` 权限。
+
 ## 实现中遇到的问题
 
 - MyGo Music 0.1.8 启动运行时时持有插件锁。模块顶层调用 `host.storage.get` 会尝试重复取得锁，导致整个插件卡住。存储读取已延迟到宿主首次调用插件函数时。
