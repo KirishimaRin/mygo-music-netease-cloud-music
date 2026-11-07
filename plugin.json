@@ -1,7 +1,7 @@
 {
   "id": "netease-cloud-music",
   "name": "NetEase Cloud Music",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "minAppVersion": "0.1.20",
   "main": "index.js",
   "playback": "stream",
@@ -18,6 +18,7 @@
     { "builtin": "stations", "title": "Personal FM" },
     { "title": "Charts", "page": "charts", "icon": "chart" },
     { "title": "Podcasts", "page": "podcasts", "icon": "podcast" },
-    { "title": "Recently Played", "page": "recent", "icon": "playlist" }
+    { "title": "Recently Played", "page": "recent", "icon": "playlist" },
+    { "builtin": "savedAlbums", "title": "Saved Albums" }
   ]
 }

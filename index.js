@@ -17,6 +17,7 @@ let signInAttempt = 0;
 let likedSongs;
 let heartStation;
 let favoriteIds;
+let commentPage;
 const playlistOrders = new Map();
 const playlistWrites = new Map();
 const sharedBrowseReads = new Map();
@@ -45,6 +46,7 @@ function saveSession(value) {
   likedSongs = undefined;
   favoriteIds = undefined;
   heartStation = undefined;
+  commentPage = undefined;
   sharedBrowseReads.delete("daily");
   playlistOrders.clear();
   playlistTrackCounts.clear();
@@ -144,6 +146,7 @@ function toAccount(profile) {
     id: String(profile.userId),
     name: profile.nickname,
     imageUrl: httpsImage(profile.avatarUrl),
+    page: "my-page",
   };
 }
 
@@ -288,6 +291,7 @@ function toShow(row) {
     imageUrl: httpsImage(row.picUrl),
     description: row.desc || "",
     publisher: row.dj?.nickname || "",
+    publisherPage: row.dj?.userId ? `publisher:${row.dj.userId}` : "",
     episodeCount: row.programCount || 0,
     subscribed: !!row.subed,
   };
@@ -444,6 +448,9 @@ export async function home() {
     .filter((row) => !dailyIds.has(row.id));
   if (playlists.length) sections.push({ title: t("Recommended Playlists"), playlists });
   if (!recommended && !sections.length) fail("network", "Could not reach NetEase Cloud Music. Try again.");
+  if (sections.length) {
+    sections.push({ links: [{ title: t("Playlist Categories"), page: "playlist-categories" }] });
+  }
   return { sections };
 }
 
@@ -458,15 +465,65 @@ export async function browse({ page }) {
     return { title: t("Recently Played"), sections: [{ tracks, empty: t("No recently played songs.") }] };
   }
   if (page === "podcasts") return podcastBrowse();
+  if (page === "playlist-categories") return playlistCategories();
+  if (page === "podcast-categories") return podcastCategories();
+  if (page === "my-page") return myPage();
   if (page === "popular-podcasts") {
     const popular = await popularPodcasts(100);
     return { title: t("Popular Podcasts"), sections: [{ shows: popular.shows }] };
+  }
+  const [kind, key, offset = "0", label] = page.split(":");
+  if (kind === "playlist-category") return playlistCategory(decodeURIComponent(key), Number(offset));
+  if (kind === "podcast-category") return podcastCategory(key, decodeURIComponent(label), Number(offset));
+  if (kind === "publisher") return publisherPage(key);
+  if (kind === "followed-artists") {
+    const auth = needSession();
+    const sections = [await followedArtists(auth, Number(key))];
+    if (session !== auth) fail("signIn", "Sign in to NetEase Cloud Music.");
+    return { title: t("Followed Artists"), sections };
   }
   if (page !== "charts") fail("unsupported", "This page is unavailable.");
   const charts = await chartPlaylists();
   const sections = [{ playlists: charts.slice(0, 4) }];
   if (charts.length > 4) sections.push({ title: t("All Charts"), playlists: charts.slice(4) });
   return { title: t("Charts"), sections };
+}
+
+async function playlistCategories() {
+  const { categories, sub } = await api("/api/playlist/catalogue", {}, null);
+  const groups = new Map();
+  for (const { name, category } of sub || []) {
+    if (!name) continue;
+    const title = categories?.[category] || "";
+    if (!groups.has(title)) groups.set(title, { title, links: [] });
+    groups.get(title).links.push({ title: name, page: `playlist-category:${encodeURIComponent(name)}` });
+  }
+  return { title: t("Playlist Categories"), sections: [...groups.values()] };
+}
+
+async function playlistCategory(name, offset) {
+  const data = await api("/api/playlist/list", { cat: name, order: "hot", limit: pageSize, offset, total: true }, null);
+  const playlists = (data.playlists || []).map((row) => toPlaylist(row));
+  const morePage = data.more && playlists.length ? `playlist-category:${encodeURIComponent(name)}:${offset + playlists.length}` : "";
+  return { title: name, sections: [{ playlists, morePage, empty: t("No playlists in this category.") }] };
+}
+
+async function podcastCategories() {
+  const { categories } = await api("/api/djradio/category/get", {}, null);
+  const links = (categories || []).map((row) => ({
+    title: row.name,
+    imageUrl: httpsImage(row.pic96x96Url),
+    page: `podcast-category:${row.id}:0:${encodeURIComponent(row.name)}`,
+  }));
+  return { title: t("Podcast Categories"), sections: [{ links }] };
+}
+
+async function podcastCategory(id, name, offset) {
+  const cateId = numericId(id);
+  const data = await api("/api/djradio/hot", { cateId, limit: pageSize, offset }, null);
+  const shows = (data.djRadios || []).map(toShow);
+  const morePage = data.hasMore && shows.length ? `podcast-category:${cateId}:${offset + shows.length}:${encodeURIComponent(name)}` : "";
+  return { title: name, sections: [{ shows, morePage, empty: t("No podcasts in this category.") }] };
 }
 
 export async function shows() {
@@ -511,7 +568,24 @@ async function podcastBrowse() {
       morePage: popular.more ? "popular-podcasts" : "",
     });
   }
+  sections.push({ links: [{ title: t("Podcast Categories"), page: "podcast-categories" }] });
   return { title: t("Podcasts"), sections };
+}
+
+async function publisherPage(id) {
+  const userId = numericId(id);
+  const [details, radios] = await Promise.all([
+    api(`/api/v1/user/detail/${userId}`, {}, null).catch(() => null),
+    api("/api/djradio/get/byuser", { userId }, null),
+  ]);
+  const shows = (radios.djRadios || []).map(toShow);
+  const profile = details?.profile;
+  return {
+    title: profile?.nickname || shows[0]?.publisher || t("Podcast Publisher"),
+    imageUrl: httpsImage(profile?.avatarUrl),
+    description: profile?.signature || profile?.description || "",
+    sections: [{ shows, empty: t("No published podcasts.") }],
+  };
 }
 
 export async function show({ id, offset = 0 }) {
@@ -519,11 +593,15 @@ export async function show({ id, offset = 0 }) {
   const radioId = numericId(id);
   const [data, detail] = await Promise.all([
     api("/api/dj/program/byradio", { radioId, offset, limit: pageSize, asc: false }, auth),
-    auth ? api("/api/djradio/v2/get", { id: radioId }, auth) : null,
+    // The copy of the radio attached to an episode may omit the publisher.
+    api("/api/djradio/v2/get", { id: radioId }, auth).catch((error) => {
+      if (auth) throw error;
+      return null;
+    }),
   ]);
   const programs = data.programs || [];
-  const radio = detail?.data || programs[0]?.radio ||
-    (await api("/api/djradio/v2/get", { id: radioId }, auth)).data;
+  const radio = detail?.data || programs[0]?.radio;
+  if (!radio) fail("unavailable", "This item is unavailable.");
   const show = toShow(radio);
   return {
     show,
@@ -598,8 +676,29 @@ async function heartNext(auth) {
 }
 
 export async function album({ id }) {
-  const data = await api("/api/v1/album/" + numericId(id));
-  return { album: toAlbum(data.album), tracks: (data.songs || []).map(toTrack) };
+  const albumId = numericId(id);
+  const auth = currentSession();
+  const [data, status] = await Promise.all([
+    api("/api/v1/album/" + albumId, {}, auth),
+    auth ? api("/api/album/detail/dynamic", { id: albumId }, auth).catch(() => null) : null,
+  ]);
+  return {
+    album: { ...toAlbum(data.album), saved: session === auth && !!status?.isSub },
+    tracks: (data.songs || []).map(toTrack),
+  };
+}
+
+export async function saveAlbum({ id, on }) {
+  await api(on ? "/api/album/sub" : "/api/album/unsub", { id: String(numericId(id)) }, needSession());
+}
+
+export async function savedAlbums({ offset = 0 }) {
+  const auth = needSession();
+  const data = await api("/api/album/sublist", { limit: pageSize, offset, total: true }, auth);
+  if (session !== auth) return { albums: [], more: false };
+  const albums = (data.data || []).map((row) => ({ ...toAlbum(row), saved: true }));
+  const more = data.hasMore ?? data.more ?? (offset + albums.length < (data.count || 0));
+  return { albums, more: albums.length > 0 && !!more };
 }
 
 export async function artist({ id }) {
@@ -635,13 +734,44 @@ export async function followArtist({ id, on }) {
   checked(body);
 }
 
-function userPlaylists(auth, offset) {
+function userPlaylists(auth, offset, limit = 100) {
   return api("/api/user/playlist", {
     uid: numericId(auth.userId),
-    limit: 100,
+    limit,
     offset,
     includeVideo: false,
   }, auth);
+}
+
+async function myPage() {
+  const auth = needSession();
+  const uid = numericId(auth.userId);
+  const [profile, list, following, ranking] = await Promise.all([
+    api(`/api/v1/user/detail/${uid}`, {}, auth),
+    userPlaylists(auth, 0, pageSize).catch(() => null),
+    followedArtists(auth, 0).catch(() => null),
+    api("/api/v1/play/record", { uid, type: 1 }, auth).catch(() => null),
+  ]);
+  if (session !== auth) fail("signIn", "Sign in to NetEase Cloud Music.");
+  const sections = [];
+  const playlists = (list?.playlist || []).map((row) => toPlaylist(row, auth)).filter((row) => row.mine);
+  if (playlists.length) sections.push({ title: t("My Playlists"), playlists });
+  if (following?.artists.length) sections.push({ title: t("Followed Artists"), ...following });
+  const tracks = (ranking?.weekData || []).slice(0, pageSize).map((row) => row.song).filter((song) => song?.id).map(toTrack);
+  if (tracks.length) sections.push({ title: t("Weekly Listening Ranking"), tracks });
+  return {
+    title: profile.profile?.nickname || t("My Page"),
+    imageUrl: httpsImage(profile.profile?.avatarUrl),
+    description: profile.profile?.signature || "",
+    sections,
+  };
+}
+
+async function followedArtists(auth, offset) {
+  const data = await api("/api/artist/sublist", { limit: pageSize, offset, total: true }, auth);
+  const artists = (data.data || []).map((row) => ({ ...toArtist(row), following: true }));
+  const morePage = data.hasMore && artists.length ? `followed-artists:${offset + artists.length}` : "";
+  return { artists, morePage, empty: t("No followed artists.") };
 }
 
 export async function playlists() {
@@ -973,31 +1103,50 @@ function commentThread(trackId) {
   return episode ? "A_DJ_1_" + numericId(episode[1]) : "R_SO_4_" + numericId(trackId);
 }
 
+function toComment(row) {
+  return {
+    id: String(row.commentId),
+    author: row.user?.nickname || "",
+    avatarUrl: httpsImage(row.user?.avatarUrl),
+    text: row.content,
+    time: row.time,
+    likes: row.likedCount || 0,
+    liked: !!row.liked,
+  };
+}
+
 export async function comments({ trackId, offset = 0 }) {
-  // The host supplies the number already shown. NetEase's hot cursor uses
-  // that offset, so paging continues even if duplicate comments are merged.
+  const threadId = commentThread(trackId);
+  if (offset === 0 || commentPage?.threadId !== threadId) commentPage = { threadId, posted: 0 };
+  // The host prepends newly posted comments to the visible count, but they
+  // do not occupy a position among the hot comments already fetched.
+  const hotOffset = Math.max(0, offset - commentPage.posted);
   const { data } = await api("/api/v2/resource/comments", {
-    threadId: commentThread(trackId),
-    pageNo: Math.floor(offset / commentPageSize) + 1,
+    threadId,
+    pageNo: Math.floor(hotOffset / commentPageSize) + 1,
     pageSize: commentPageSize,
-    cursor: "normalHot#" + offset,
+    cursor: "normalHot#" + hotOffset,
     sortType: 2,
     showInner: true,
   });
   const rows = data?.comments || [];
   return {
-    comments: rows.map((row) => ({
-      id: String(row.commentId),
-      author: row.user?.nickname || "",
-      avatarUrl: httpsImage(row.user?.avatarUrl),
-      text: row.content,
-      time: row.time,
-      likes: row.likedCount || 0,
-      liked: !!row.liked,
-    })),
+    comments: rows.map(toComment),
     total: data?.totalCount || 0,
     more: !!data?.hasMore && rows.length > 0,
   };
+}
+
+export async function postComment({ trackId, text }) {
+  const auth = needSession();
+  const content = text.trim();
+  if (!content) fail("api", "Enter a comment first.");
+  const threadId = commentThread(trackId);
+  const page = commentPage;
+  const { comment } = await api("/api/resource/comments/add", { threadId, content, e_r: false }, auth);
+  if (!comment?.commentId) fail("api", "NetEase Cloud Music returned an unexpected response.");
+  if (session === auth && commentPage === page && page?.threadId === threadId) page.posted++;
+  return toComment(comment);
 }
 
 export async function likeComment({ trackId, commentId, on }) {
