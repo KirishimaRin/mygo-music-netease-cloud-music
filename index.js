@@ -431,7 +431,7 @@ export async function home() {
   ]);
   const sections = [];
   if (auth === session && tracks.length) {
-    sections.push({ title: t("Daily Recommendations"), tracks });
+    sections.push({ title: t("Daily Recommendations"), pageTitle: t("Daily Songs"), tracks });
   }
   if (auth === session && today.length) {
     sections.push({ title: t("Today's Picks for You"), playlists: today });
@@ -451,6 +451,11 @@ export async function browse({ page }) {
   if (page === "daily") {
     const tracks = await dailyTracks(needSession());
     return { title: t("Daily Songs"), subtitle: t("{count} tracks").replace("{count}", tracks.length), sections: [{ tracks }] };
+  }
+  if (page === "recent") {
+    needSession();
+    const tracks = await recent();
+    return { title: t("Recently Played"), sections: [{ tracks, empty: t("No recently played songs.") }] };
   }
   if (page === "podcasts") return podcastBrowse();
   if (page === "popular-podcasts") {
@@ -1037,8 +1042,9 @@ export async function stream({ id, quality }) {
     fail("unavailable", "This item is unavailable.");
   }
   url.protocol = "https:";
-  const type = (audio.type || "").toLowerCase();
-  if (!["mp3", "flac", "ogg"].includes(type)) {
+  const format = (audio.type || "").toLowerCase();
+  const type = format === "mp4" ? "m4a" : format;
+  if (!["mp3", "flac", "ogg", "m4a", "aac"].includes(type)) {
     fail("unsupported", "This audio format is unsupported.");
   }
   return {

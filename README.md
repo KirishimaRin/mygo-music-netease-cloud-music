@@ -1,6 +1,6 @@
 # 网易云音乐 · MyGo Music 插件
 
-[![Version](https://img.shields.io/badge/version-0.1.2-blue.svg)](plugin.json)
+[![Version](https://img.shields.io/badge/version-0.1.3-blue.svg)](plugin.json)
 [![Min Host Version](https://img.shields.io/badge/MyGo%20Music-%E2%89%A5%200.1.20-brightgreen.svg)](https://github.com/egoist/mygo-music)
 [![Language](https://img.shields.io/badge/language-JavaScript%20(ESM)-yellow.svg)](index.js)
 
@@ -19,6 +19,7 @@
 
 ### 音频播放与音质控制
 - **流媒体解析**：支持 MP3、FLAC、OGG 等格式直接拉取，包含码率（bitRate）、文件大小（size）、音轨增益（gain/ReplayGain）与峰值（peak）信息。
+- **宿主音频解码**：网易云返回 AAC 或 M4A 时直接交给 MyGo Music 解码。分片 MP4 和 MP4 封装的 FLAC 需要 MyGo Music 0.1.21 或更高版本。
 - **试听拦截**：智能识别 VIP 试听限制（`freeTrialInfo`），对不可用音源明确提示，避免将试听片段误作为完整曲目播放。
 - **音质偏好配置**：
   - 支持在插件设置中指定偏好档位：`standard`（标准）、`higher`（较高）、`exhigh`（极高）、`lossless`（无损/FLAC）、`hires`（Hi-Res）。
@@ -51,7 +52,7 @@
   - 优先解析网易云 `yrc` 高精度逐字时间戳歌词及中文翻译。
   - 缺少逐字数据时，自动平滑回退至传统 `lrc` 逐行歌词与翻译。
 - **播放历史记录**：
-  - 跨设备最近播放记录读取（当首页推荐无内容时无缝呈现）。
+  - 登录后从侧栏「最近播放」查看同一账号最近 50 条歌曲播放记录。
   - 支持可选将歌曲播放开始事件同步回网易云云端。
 
 ### 性能与网络优化
@@ -74,7 +75,7 @@
 2. 进入 **设置 (Settings) → 插件 (Plugins) → 添加插件 (+)**。
 3. 选择以下任一方式进行安装：
    - **从 GitHub 安装（推荐）**：粘贴本插件的 GitHub 仓库地址。
-   - **从 Zip 文件安装**：选择发行版打包的 `netease-cloud-music-0.1.2.zip`。
+   - **从 Zip 文件安装**：选择对应版本的安装包，例如 `netease-cloud-music-0.1.3.zip`。
    - **从文件夹安装（开发调试）**：选中包含 `plugin.json` 的项目根目录。
 4. 安装完成后，在插件列表中找到 **网易云音乐 (NetEase Cloud Music)**，点击 **登录**，使用手机网易云音乐 App 扫码并确认即可。
 

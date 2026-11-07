@@ -2,8 +2,8 @@
 
 ## 当前交付
 
-- 插件 ID 为 `netease-cloud-music`，版本为 `0.1.2`，最低宿主版本为 MyGo Music 0.1.20。
-- 发布结构为根目录下的 `plugin.json`、`index.js` 和 `locales/zh-CN.json`。本地安装包为 `dist/netease-cloud-music-0.1.2.zip`。改动后重新打包。
+- 插件 ID 为 `netease-cloud-music`，本地版本为 `0.1.3`，最低宿主版本为 MyGo Music 0.1.20。
+- 发布结构为根目录下的 `plugin.json`、`index.js` 和 `locales/zh-CN.json`。本地安装包为 `dist/netease-cloud-music-0.1.3.zip`。改动后重新打包。
 - 仓库发布从 0.1.0 起算。下文的 0.2.0 到 0.6.4 是发布前的本地测试版本号，`dist/` 里同名的旧包只用于本地，不要按它们推断发布版本。
 - 0.1.2 修复首页单个分区失败导致整页报错、超时与异常响应混成网络错误、音质降级跳过极高、设置为空时报错，并缓存喜欢歌单的曲目顺序供翻页复用。
 - 0.1.2 把最低宿主版本提到 0.1.20。封面 URL 改用 `param={size}y{size}`，删除 `imageSizes` 和插件内的固定尺寸分档。
@@ -42,7 +42,7 @@
 - 歌单移动接收宿主显示行的索引。提交前核对服务器的完整顺序，并保留因缺少详情而未显示的曲目。网易云歌单增删曲遇到 512 时按上游协议仅重试一次。
 - 歌手关注走 `music.163.com` 的网页接口。二维码登录现在同时保存 `__csrf`。旧登录凭据可继续使用，如网页接口拒绝则重新扫码。
 - 「同步播放记录」默认关闭，开启后只发播放开始事件。宿主回调只传曲目 ID。实际时长统计留待后续独立任务。
-- MyGo Music 优先显示插件的 `home`，首页无内容时才请求 `recent`。实现最近播放接口后，文档应按这个入口说明。
+- MyGo Music 优先显示插件的 `home`，首页无内容时才主动调用 `recent`。0.1.3 增加侧栏 `browse` 入口，按需复用 `recent()`，宿主负责渲染和播放曲目列表。历史记录不参与首页加载。
 - 宿主使用 `standard`、`high`、`lossless` 识别缓存质量。插件将实际流档位映射到这三档。插件音质偏好只在向网易云请求音源时生效。
 - MyGo Music 0.1.9 到上游提交 `cf9a8f0` 的插件设置仅声明键、标签、帮助和链接，宿主统一使用文本框。原生下拉和开关需要宿主提供相应字段及渲染支持。
 - MyGo Music 0.1.11 的重命名歌单弹窗复用 `Save`，简体中文显示成「收藏」。提交动作仍调用 `RenamePlaylist`。修正时应给重命名弹窗单独使用「保存」文案。
@@ -81,3 +81,11 @@
 - [#25](https://github.com/egoist/mygo-music/issues/25) 已按不计划关闭。侧栏日推页无法复用原生歌曲页头，两个日推入口维持现状。
 - [#27](https://github.com/egoist/mygo-music/issues/27) 仍未合并，设置项继续用文本框。
 - #35 的订阅分组即时刷新和 `{size}` 封面尚未在 0.1.20 应用内实测。
+
+## 上游复核（2026-11-07，v0.1.21）
+
+- 0.1.3 通过宿主 [#15](https://github.com/egoist/mygo-music/pull/15) 提供的 `pageTitle` 设置首页日推卡打开的原生页标题。侧栏仍使用 `browse` 页，宿主未开放直达日历页头的路由。
+- 宿主 0.1.20 已支持 AAC 和普通 M4A。0.1.21 的 [#56](https://github.com/egoist/mygo-music/pull/56) 增加分片 MP4 和 MP4 封装的 FLAC。0.1.3 把网易云返回的 `mp4` 规范为宿主使用的 `m4a`，沿用原音源请求和降级策略。无需为该兼容路径提高最低宿主版本，也无需加转码进程。
+- [#35](https://github.com/egoist/mygo-music/pull/35) 是打开超过 30 秒的 Browse 页面时后台刷新，播客订阅分组和最近播放沿用宿主刷新规则。[#59](https://github.com/egoist/mygo-music/pull/59) 的播放页内存修复随 0.1.21 生效。
+- [#44](https://github.com/egoist/mygo-music/issues/44) 的实际收听时长和 FM 独立分组，以及 [#27](https://github.com/egoist/mygo-music/issues/27) 的设置下拉、开关仍待宿主接口。播放记录同步仍只有开始事件。
+- 0.1.3 通过模拟网易云响应验证日推标题与请求复用、最近播放和音源格式回归，并通过 MyGo Music 0.1.21 的 ZIP 安装与运行时检查。宿主原生标题、侧栏路由、封面尺寸、Browse 刷新和分片解码测试通过。真实账号历史记录和新增格式的网易云音源待实播验收。
