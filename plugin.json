@@ -1,7 +1,7 @@
 {
   "id": "netease-cloud-music",
   "name": "NetEase Cloud Music",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "minAppVersion": "0.1.20",
   "main": "index.js",
   "playback": "stream",
@@ -10,11 +10,11 @@
   },
   "settings": [
     { "key": "quality", "label": "NetEase Audio Quality", "help": "Use standard, higher, exhigh, lossless or hires. Leave blank to follow MyGo Music." },
-    { "key": "syncHistory", "label": "Sync Playback History", "help": "Enter on to send song starts to NetEase Cloud Music." }
+    { "key": "syncHistory", "label": "Sync Playback History", "help": "Enter on to send your plays to NetEase Cloud Music." }
   ],
   "navigation": [
     { "builtin": "home", "title": "For You" },
-    { "title": "Daily Recommendations", "page": "daily", "icon": "calendar" },
+    { "title": "Daily Recommendations", "section": "daily", "page": "daily", "icon": "calendar" },
     { "builtin": "stations", "title": "Personal FM" },
     { "title": "Charts", "page": "charts", "icon": "chart" },
     { "title": "Podcasts", "page": "podcasts", "icon": "podcast" },

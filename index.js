@@ -372,10 +372,35 @@ export async function recent() {
 export async function played({ id }) {
   const auth = currentSession();
   if (!auth || episodeIds(id) || setting("syncHistory") !== "on") return;
-  // The host notifies us when playback begins. It supplies no elapsed time.
+  // startplay adds the song to NetEase's recent plays. The listening ranking
+  // counts the play log that playEnded sends on hosts that call it.
   const logs = JSON.stringify([{
     action: "startplay",
     json: { id: numericId(id), type: "song", mainsite: "1", mainsiteWeb: "1" },
+  }]);
+  const { body } = await request("/api/feedback/weblog", { logs }, auth, { endpoint: logOrigin });
+  checked(body);
+}
+
+// Only MyGo Music builds with the playEnded callback call this, such as the
+// KirishimaRin/mygo-music fork. Upstream hosts never call it.
+export async function playEnded({ id, seconds, reason }) {
+  const auth = currentSession();
+  const time = Math.round(Number(seconds));
+  if (!auth || episodeIds(id) || setting("syncHistory") !== "on" || !(time > 0)) return;
+  const logs = JSON.stringify([{
+    action: "play",
+    json: {
+      id: numericId(id),
+      type: "song",
+      time,
+      end: reason === "ended" ? "playend" : "ui",
+      download: 0,
+      wifi: 0,
+      source: "list",
+      mainsite: "1",
+      mainsiteWeb: "1",
+    },
   }]);
   const { body } = await request("/api/feedback/weblog", { logs }, auth, { endpoint: logOrigin });
   checked(body);
@@ -435,7 +460,7 @@ export async function home() {
   ]);
   const sections = [];
   if (auth === session && tracks.length) {
-    sections.push({ title: t("Daily Recommendations"), pageTitle: t("Daily Songs"), tracks });
+    sections.push({ id: "daily", title: t("Daily Recommendations"), pageTitle: t("Daily Songs"), tracks });
   }
   if (auth === session && today.length) {
     sections.push({ title: t("Today's Picks for You"), playlists: today });
@@ -622,7 +647,15 @@ const fmModes = {
 
 export function stations() {
   const modes = Object.entries(fmModes).map(([id, [, name]]) => ({ id, name: t(name) }));
-  return [...modes, { id: "heart-mode", name: t("Heart Mode") }];
+  // Hosts without standalone stations keep Heart Mode in the switch.
+  return [...modes, {
+    id: "heart-mode",
+    name: t("Heart Mode"),
+    standalone: true,
+    icon: "heart",
+    headline: t("Songs like the ones you love"),
+    description: t("Starts from a random song you liked."),
+  }];
 }
 
 export async function stationNext({ id }) {

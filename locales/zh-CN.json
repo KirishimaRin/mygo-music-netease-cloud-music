@@ -36,7 +36,7 @@
   "NetEase Audio Quality": "网易云音质",
   "Use standard, higher, exhigh, lossless or hires. Leave blank to follow MyGo Music.": "可填 standard、higher、exhigh、lossless 或 hires。留空跟随 MyGo Music。",
   "Sync Playback History": "同步播放记录",
-  "Enter on to send song starts to NetEase Cloud Music.": "填 on，将歌曲播放开始记录同步到网易云。",
+  "Enter on to send your plays to NetEase Cloud Music.": "填 on，将播放记录同步到网易云。",
   "This song is already in the playlist.": "这首歌已在歌单中。",
   "This playlist changed. Reopen it before changing the order.": "歌单已变动，请重新打开后再调整顺序。",
   "NetEase Cloud Music refused this action.": "网易云音乐拒绝了这次操作。",
@@ -57,5 +57,7 @@
   "The full track is unavailable for this account or region.": "当前账号或地区无法播放这首歌的完整版。",
   "This audio format is unsupported.": "播放器暂不支持此音频格式。",
   "NetEase Cloud Music took too long to respond. Try again.": "网易云音乐响应超时，请重试。",
-  "NetEase Cloud Music returned an unexpected response.": "网易云音乐返回了无法识别的内容。"
+  "NetEase Cloud Music returned an unexpected response.": "网易云音乐返回了无法识别的内容。",
+  "Songs like the ones you love": "从你喜欢的歌出发",
+  "Starts from a random song you liked.": "随机选一首红心歌曲，推荐相似的歌。"
 }

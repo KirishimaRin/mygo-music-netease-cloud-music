@@ -98,3 +98,11 @@
 - 匿名加载单集时，响应内嵌的 `radio` 可能缺少 `dj`。播客详情与单集列表并行请求，优先用详情提供主播链接，翻页时也保留该链接。
 - 「我的主页」读取网易云已有的本周排行，与播放开始同步和实际时长上报独立。关注歌手可以继续翻页，个人主页只预览首批自建歌单，完整歌单仍由宿主侧栏展示。
 - 0.1.4 通过 MyGo Music 0.1.21 的 ZIP 安装与真实匿名接口验证，覆盖分类入口、歌单翻页和播客详情到主播页。专辑收藏、发表评论和「我的主页」通过模拟账号测试，真实账号操作待验收。
+
+## 0.1.5 接入修改版宿主（2026-11-07）
+
+- 宿主基准为 [KirishimaRin/mygo-music](https://github.com/KirishimaRin/mygo-music) `2858803`，接口说明在该仓库的 `FORK.md`。上游 egoist `b021067` 用标准 `json.Unmarshal` 解析 manifest 和返回值，会丢掉不认识的字段，也从不调用 `playEnded`，所以 `minAppVersion` 保持 0.1.20。
+- 侧栏日推同时写 `section: "daily"` 和 `page: "daily"`。修改版按 `section` 打开 `home()` 里 `id: "daily"` 的原生歌曲页，旧宿主走 `page`。未登录时首页没有日推区块，修改版显示空首页提示。
+- 心动模式带 `standalone`、`icon: "heart"`、`headline`、`description`。电台总数必须保持在 4 个以内，否则上游会把切换器换成网格。插件读不到宿主版本，增加电台前要先解决这个问题。
+- 修改版对同一次播放先调用 `played`，结束时再调用 `playEnded`。`played` 发 `startplay`，进入最近播放。`playEnded` 发 `action: "play"`，带 `time` 和 `end`，计入听歌排行，字段参考 api-enhanced 的 `module/scrobble.js`。两者是不同的日志动作，不会重复计数。上游只发 `startplay`，与 0.1.4 相同。
+- `playEnded` 在退出时宿主只等 2 秒，超时的那一条会丢掉。收听不到 1 秒的不上报，播客单集不上报。
