@@ -33,6 +33,11 @@ function setting(key) {
   return String(host.setting(key) ?? "").trim().toLowerCase();
 }
 
+function syncHistoryEnabled() {
+  const value = setting("syncHistory");
+  return value === "true" || value === "on";
+}
+
 function currentSession() {
   // Read on first use. Hosts before 0.1.20 deadlocked on top-level storage reads.
   if (session === undefined) session = host.storage.get(sessionKey) || null;
@@ -371,7 +376,7 @@ export async function recent() {
 
 export async function played({ id }) {
   const auth = currentSession();
-  if (!auth || episodeIds(id) || setting("syncHistory") !== "on") return;
+  if (!auth || episodeIds(id) || !syncHistoryEnabled()) return;
   // startplay adds the song to NetEase's recent plays. The listening ranking
   // counts the play log that playEnded sends on hosts that call it.
   const logs = JSON.stringify([{
@@ -387,7 +392,7 @@ export async function played({ id }) {
 export async function playEnded({ id, seconds, reason }) {
   const auth = currentSession();
   const time = Math.round(Number(seconds));
-  if (!auth || episodeIds(id) || setting("syncHistory") !== "on" || !(time > 0)) return;
+  if (!auth || episodeIds(id) || !syncHistoryEnabled() || !(time > 0)) return;
   const logs = JSON.stringify([{
     action: "play",
     json: {

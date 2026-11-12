@@ -1,6 +1,6 @@
 # 网易云音乐 · MyGo Music 插件
 
-[![Version](https://img.shields.io/badge/version-0.1.5-blue.svg)](plugin.json)
+[![Version](https://img.shields.io/badge/version-0.1.6-blue.svg)](plugin.json)
 [![Min Host Version](https://img.shields.io/badge/MyGo%20Music-%E2%89%A5%200.1.20-brightgreen.svg)](https://github.com/egoist/mygo-music)
 [![Language](https://img.shields.io/badge/language-JavaScript%20(ESM)-yellow.svg)](index.js)
 
@@ -22,7 +22,7 @@
 - **宿主音频解码**：网易云返回 AAC 或 M4A 时直接交给 MyGo Music 解码。分片 MP4 和 MP4 封装的 FLAC 需要 MyGo Music 0.1.21 或更高版本。
 - **试听拦截**：智能识别 VIP 试听限制（`freeTrialInfo`），对不可用音源明确提示，避免将试听片段误作为完整曲目播放。
 - **音质偏好配置**：
-  - 支持在插件设置中指定偏好档位：`standard`（标准）、`higher`（较高）、`exhigh`（极高）、`lossless`（无损/FLAC）、`hires`（Hi-Res）。
+  - 支持在插件设置的下拉菜单中选择偏好档位（也可选择跟随宿主）：`standard`（标准）、`higher`（较高）、`exhigh`（极高）、`lossless`（无损/FLAC）、`hires`（Hi-Res）。
   - 无损或 Hi-Res 不可用时依次降到极高、标准，并无缝映射到 MyGo Music 宿主的 `standard` / `high` / `lossless` 缓存体系中。
 
 ### 发现与个性化音乐
@@ -79,7 +79,7 @@
 2. 进入 **设置 (Settings) → 插件 (Plugins) → 添加插件 (+)**。
 3. 选择以下任一方式进行安装：
    - **从 GitHub 安装（推荐）**：粘贴本插件的 GitHub 仓库地址。
-   - **从 Zip 文件安装**：选择对应版本的安装包，例如 `netease-cloud-music-0.1.5.zip`。
+   - **从 Zip 文件安装**：选择对应版本的安装包，例如 `netease-cloud-music-0.1.6.zip`。
    - **从文件夹安装（开发调试）**：选中包含 `plugin.json` 的项目根目录。
 4. 安装完成后，在插件列表中找到 **网易云音乐 (NetEase Cloud Music)**，点击 **登录**，使用手机网易云音乐 App 扫码并确认即可。
 
@@ -107,12 +107,16 @@
 
 ## 插件配置项
 
-在 MyGo Music 的插件设置中，可按需配置以下选项：
+在支持类型化设置的 MyGo Music 宿主中，音质使用下拉菜单，同步播放记录使用开关，修改后自动保存。旧宿主仍显示文本框，设置值继续以字符串保存。
+
+旧版已保存的 `on` 继续开启同步；新宿主对这个旧值仍显示文本框，可将其改为 `true` 并保存，随后显示开关。
+
+可按需配置以下选项：
 
 | 配置项 (Key) | 选项名称 | 说明 | 可填值 | 默认值 |
 | :--- | :--- | :--- | :--- | :--- |
 | `quality` | 网易云音质偏好 | 向网易云请求音源时的首选音质档位。实际返回根据账号 VIP 权限由网易云协商，插件会自动降级适配。 | `standard` / `higher` / `exhigh` / `lossless` / `hires` | 留空（跟随 MyGo Music 宿主设置） |
-| `syncHistory` | 同步播放记录 | 是否将本机播放同步到网易云的最近播放。使用修改版宿主时，还会上报实际收听时长，计入听歌排行。 | 填 `on` 开启，留空关闭 | 留空（关闭） |
+| `syncHistory` | 同步播放记录 | 是否将本机播放同步到网易云的最近播放。使用修改版宿主时，还会上报实际收听时长，计入听歌排行。 | 开关开启保存 `true`，关闭保存 `false`；兼容旧值 `on` | 关闭（未设置时） |
 
 ---
 

@@ -1,24 +1,88 @@
 {
   "id": "netease-cloud-music",
   "name": "NetEase Cloud Music",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "minAppVersion": "0.1.20",
   "main": "index.js",
   "playback": "stream",
   "permissions": {
-    "network": ["interfacepc.music.163.com", "music.163.com", "clientlog.music.163.com"]
+    "network": [
+      "interfacepc.music.163.com",
+      "music.163.com",
+      "clientlog.music.163.com"
+    ]
   },
   "settings": [
-    { "key": "quality", "label": "NetEase Audio Quality", "help": "Use standard, higher, exhigh, lossless or hires. Leave blank to follow MyGo Music." },
-    { "key": "syncHistory", "label": "Sync Playback History", "help": "Enter on to send your plays to NetEase Cloud Music." }
+    {
+      "key": "quality",
+      "type": "select",
+      "label": "NetEase Audio Quality",
+      "options": [
+        {
+          "value": "",
+          "label": "Follow MyGo Music"
+        },
+        {
+          "value": "standard",
+          "label": "Standard"
+        },
+        {
+          "value": "higher",
+          "label": "Higher"
+        },
+        {
+          "value": "exhigh",
+          "label": "Extra High"
+        },
+        {
+          "value": "lossless",
+          "label": "Lossless"
+        },
+        {
+          "value": "hires",
+          "label": "Hi-Res"
+        }
+      ]
+    },
+    {
+      "key": "syncHistory",
+      "type": "boolean",
+      "label": "Sync Playback History"
+    }
   ],
   "navigation": [
-    { "builtin": "home", "title": "For You" },
-    { "title": "Daily Recommendations", "section": "daily", "page": "daily", "icon": "calendar" },
-    { "builtin": "stations", "title": "Personal FM" },
-    { "title": "Charts", "page": "charts", "icon": "chart" },
-    { "title": "Podcasts", "page": "podcasts", "icon": "podcast" },
-    { "title": "Recently Played", "page": "recent", "icon": "playlist" },
-    { "builtin": "savedAlbums", "title": "Saved Albums" }
+    {
+      "builtin": "home",
+      "title": "For You"
+    },
+    {
+      "title": "Daily Recommendations",
+      "section": "daily",
+      "page": "daily",
+      "icon": "calendar"
+    },
+    {
+      "builtin": "stations",
+      "title": "Personal FM"
+    },
+    {
+      "title": "Charts",
+      "page": "charts",
+      "icon": "chart"
+    },
+    {
+      "title": "Podcasts",
+      "page": "podcasts",
+      "icon": "podcast"
+    },
+    {
+      "title": "Recently Played",
+      "page": "recent",
+      "icon": "playlist"
+    },
+    {
+      "builtin": "savedAlbums",
+      "title": "Saved Albums"
+    }
   ]
 }

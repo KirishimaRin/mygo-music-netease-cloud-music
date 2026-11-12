@@ -106,3 +106,12 @@
 - 心动模式带 `standalone`、`icon: "heart"`、`headline`、`description`。电台总数必须保持在 4 个以内，否则上游会把切换器换成网格。插件读不到宿主版本，增加电台前要先解决这个问题。
 - 修改版对同一次播放先调用 `played`，结束时再调用 `playEnded`。`played` 发 `startplay`，进入最近播放。`playEnded` 发 `action: "play"`，带 `time` 和 `end`，计入听歌排行，字段参考 api-enhanced 的 `module/scrobble.js`。两者是不同的日志动作，不会重复计数。上游只发 `startplay`，与 0.1.4 相同。
 - `playEnded` 在退出时宿主只等 2 秒，超时的那一条会丢掉。收听不到 1 秒的不上报，播客单集不上报。
+
+## 0.1.6 类型化设置（2026-11-12）
+
+- 对照当前本地宿主 internal/music/music.go 与 ui_source_settings.go，音质声明 type: select，提供空值跟随宿主及五档音质；同步播放记录声明 type: boolean。
+- 宿主开关写字符串 true/false，插件的两个播放回调统一兼容 true 和旧值 on。宿主对旧值 on 回退文本框；改为 true 并保存后显示开关。不要直接假定声明 boolean 就会迁移旧设置。
+- 继续扫码登录，无需增加密码配置；不增加网络请求或后台迁移。
+- Node 模拟验证设置缺省、空值、true、false、旧 on、大小写和空白，以及播放开始和结束的请求次数与日志字段；零秒不上报。JSON、翻译和模块语法校验通过。尚未进行宿主 GUI 验收。
+- PowerShell 不支持 shell 的 < 输入重定向，语法检查用 Get-Content -Raw | node --input-type=module --check。
+- 本地打包 dist/netease-cloud-music-0.1.6.zip；按用户要求提交并推送 main，未创建 Release。

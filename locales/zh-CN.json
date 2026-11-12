@@ -34,9 +34,7 @@
   "Weekly Listening Ranking": "本周听歌排行",
   "Enter a comment first.": "请输入评论。",
   "NetEase Audio Quality": "网易云音质",
-  "Use standard, higher, exhigh, lossless or hires. Leave blank to follow MyGo Music.": "可填 standard、higher、exhigh、lossless 或 hires。留空跟随 MyGo Music。",
   "Sync Playback History": "同步播放记录",
-  "Enter on to send your plays to NetEase Cloud Music.": "填 on，将播放记录同步到网易云。",
   "This song is already in the playlist.": "这首歌已在歌单中。",
   "This playlist changed. Reopen it before changing the order.": "歌单已变动，请重新打开后再调整顺序。",
   "NetEase Cloud Music refused this action.": "网易云音乐拒绝了这次操作。",
@@ -59,5 +57,11 @@
   "NetEase Cloud Music took too long to respond. Try again.": "网易云音乐响应超时，请重试。",
   "NetEase Cloud Music returned an unexpected response.": "网易云音乐返回了无法识别的内容。",
   "Songs like the ones you love": "从你喜欢的歌出发",
-  "Starts from a random song you liked.": "随机选一首红心歌曲，推荐相似的歌。"
+  "Starts from a random song you liked.": "随机选一首红心歌曲，推荐相似的歌。",
+  "Follow MyGo Music": "跟随 MyGo Music",
+  "Standard": "标准",
+  "Higher": "较高",
+  "Extra High": "极高",
+  "Lossless": "无损",
+  "Hi-Res": "Hi-Res"
 }
