@@ -1,6 +1,6 @@
 # 网易云音乐 · MyGo Music 插件
 
-[![Version](https://img.shields.io/badge/version-0.1.6-blue.svg)](plugin.json)
+[![Version](https://img.shields.io/badge/version-0.1.7-blue.svg)](plugin.json)
 [![Min Host Version](https://img.shields.io/badge/MyGo%20Music-%E2%89%A5%200.1.20-brightgreen.svg)](https://github.com/egoist/mygo-music)
 [![Language](https://img.shields.io/badge/language-JavaScript%20(ESM)-yellow.svg)](index.js)
 
@@ -79,7 +79,7 @@
 2. 进入 **设置 (Settings) → 插件 (Plugins) → 添加插件 (+)**。
 3. 选择以下任一方式进行安装：
    - **从 GitHub 安装（推荐）**：粘贴本插件的 GitHub 仓库地址。
-   - **从 Zip 文件安装**：选择对应版本的安装包，例如 `netease-cloud-music-0.1.6.zip`。
+   - **从 Zip 文件安装**：选择对应版本的安装包，例如 `netease-cloud-music-0.1.7.zip`。
    - **从文件夹安装（开发调试）**：选中包含 `plugin.json` 的项目根目录。
 4. 安装完成后，在插件列表中找到 **网易云音乐 (NetEase Cloud Music)**，点击 **登录**，使用手机网易云音乐 App 扫码并确认即可。
 
@@ -116,7 +116,7 @@
 | 配置项 (Key) | 选项名称 | 说明 | 可填值 | 默认值 |
 | :--- | :--- | :--- | :--- | :--- |
 | `quality` | 网易云音质偏好 | 向网易云请求音源时的首选音质档位。实际返回根据账号 VIP 权限由网易云协商，插件会自动降级适配。 | `standard` / `higher` / `exhigh` / `lossless` / `hires` | 留空（跟随 MyGo Music 宿主设置） |
-| `syncHistory` | 同步播放记录 | 是否将本机播放同步到网易云的最近播放。使用修改版宿主时，还会上报实际收听时长，计入听歌排行。 | 开关开启保存 `true`，关闭保存 `false`；兼容旧值 `on` | 关闭（未设置时） |
+| `syncHistory` | 同步播放记录 | 将本机播放同步到网易云的最近播放。上报实际收听时长、用于听歌排行，需要使用[修改版 MyGo Music 宿主](#需要修改版宿主的能力)。 | 开关开启保存 `true`，关闭保存 `false`；兼容旧值 `on` | 关闭（未设置时） |
 
 ---
 

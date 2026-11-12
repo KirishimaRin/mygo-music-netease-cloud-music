@@ -1,7 +1,7 @@
 {
   "id": "netease-cloud-music",
   "name": "NetEase Cloud Music",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "minAppVersion": "0.1.20",
   "main": "index.js",
   "playback": "stream",
@@ -47,7 +47,8 @@
     {
       "key": "syncHistory",
       "type": "boolean",
-      "label": "Sync Playback History"
+      "label": "Sync Playback History",
+      "help": "Syncs recent plays to NetEase Cloud Music. Reporting listening time for listening rankings requires the modified MyGo Music host."
     }
   ],
   "navigation": [

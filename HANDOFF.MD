@@ -115,3 +115,7 @@
 - Node 模拟验证设置缺省、空值、true、false、旧 on、大小写和空白，以及播放开始和结束的请求次数与日志字段；零秒不上报。JSON、翻译和模块语法校验通过。尚未进行宿主 GUI 验收。
 - PowerShell 不支持 shell 的 < 输入重定向，语法检查用 Get-Content -Raw | node --input-type=module --check。
 - 本地打包 dist/netease-cloud-music-0.1.6.zip；已推送 main，并发布 v0.1.6 Release（标签对应 fdf49d8），上传 ZIP；已核对 ZIP 内容与源码一致、远端附件状态为 uploaded。Git 直连 GitHub 超时时，使用本机 HTTP 代理 127.0.0.1:7890 重试成功。
+
+## 同步记录设置说明（2026-11-12）
+
+- 按用户要求在 syncHistory 的 help 及中文翻译中明确：同步最近播放；实际收听时长上报、用于听歌排行需要修改版 MyGo Music 宿主。README 配置表同步说明。仅修改文案，版本更新为 0.1.7，按用户要求推送 main 并发布带 ZIP 的 Release。

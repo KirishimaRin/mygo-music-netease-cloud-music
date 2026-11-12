@@ -63,5 +63,6 @@
   "Higher": "较高",
   "Extra High": "极高",
   "Lossless": "无损",
-  "Hi-Res": "Hi-Res"
+  "Hi-Res": "Hi-Res",
+  "Syncs recent plays to NetEase Cloud Music. Reporting listening time for listening rankings requires the modified MyGo Music host.": "将播放记录同步到网易云。上报实际收听时长、用于听歌排行，需要使用修改版 MyGo Music 宿主。"
 }
