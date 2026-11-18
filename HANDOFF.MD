@@ -2,8 +2,8 @@
 
 ## 当前交付
 
-- 插件 ID 为 `netease-cloud-music`，本地版本为 `0.1.4`，最低宿主版本为 MyGo Music 0.1.20。
-- 发布结构为根目录下的 `plugin.json`、`index.js` 和 `locales/zh-CN.json`。本地安装包为 `dist/netease-cloud-music-0.1.4.zip`。改动后重新打包。
+- 插件 ID 为 `netease-cloud-music`，当前发布版本为 `0.1.8`，最低宿主版本为 MyGo Music 0.1.20。
+- 发布结构为根目录下的 `plugin.json`、`index.js` 和 `locales/zh-CN.json`。本地安装包为 `dist/netease-cloud-music-0.1.8.zip`。改动后重新打包。
 - 仓库发布从 0.1.0 起算。下文的 0.2.0 到 0.6.4 是发布前的本地测试版本号，`dist/` 里同名的旧包只用于本地，不要按它们推断发布版本。
 - 0.1.2 修复首页单个分区失败导致整页报错、超时与异常响应混成网络错误、音质降级跳过极高、设置为空时报错，并缓存喜欢歌单的曲目顺序供翻页复用。
 - 0.1.2 把最低宿主版本提到 0.1.20。封面 URL 改用 `param={size}y{size}`，删除 `imageSizes` 和插件内的固定尺寸分档。
@@ -130,3 +130,9 @@
 - 删除歌曲后，把同一批 ID 从已保存的远端顺序和宿主可见顺序中移除。排序时缺少原快照或远端顺序已变，返回重开提示。不能补读远端后直接套用旧界面索引。现有网易云接口的校验读取和更新是两次请求，外部编辑仍可能发生在两次请求之间。
 - 「喜欢的歌曲」同时记录网易云已消费的 ID 和已解析的可见曲目。整批详情缺失时继续向后读取。后续页和重试复用同一顺序，第一页刷新以及写入后重建快照。搜索显式传入会话，搜索期间退出时清除结果中的账号状态。
 - `node --test tests/plugin.test.mjs` 覆盖 7 项场景。使用临时 Go overlay、实际本体播放器和插件运行时做离线联验，两端各两个场景各跑 3 次通过。单曲循环每轮生成 `startplay` 及自然结束日志。远端跳到 100 秒后暂停并退出，上报累计收听 11 秒。两端沿用 `played({id})` 与 `playEnded({id, seconds, reason})`。联验使用模拟网易云传输。
+
+## 0.1.8 发布验收（2026-11-18）
+
+- 基于远端 `main` 的 `4e34457` 发布，标签 `v0.1.8` 指向 `61f424d395132148250a6f696ca1993e0b2515b4`。先在指定插件 fork 上创建草稿并核对上传摘要，再转为 [正式 Release](https://github.com/KirishimaRin/mygo-music-netease-cloud-music/releases/tag/v0.1.8)。原 v0.1.7 资产 ID 和摘要一致。
+- 发布前跑完 7 项 Node 回归以及 JS 语法和两份 JSON 校验。发布后用 `gh release download v0.1.8 -R KirishimaRin/mygo-music-netease-cloud-music` 下载 `netease-cloud-music-0.1.8.zip`，核对根目录结构、3 个文件内容及标签，均通过。ZIP 为 15,881 字节，SHA-256 为 `6c64fd6c0b502faa2de005f10711039f4904418db7a19f77a560a06563b18be4`。
+- 最低宿主版本和插件接口沿用现有声明。本次发布验收覆盖回归和远端安装包，真实账号与宿主 GUI 尚未验收。
