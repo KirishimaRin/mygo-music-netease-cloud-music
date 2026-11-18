@@ -16,7 +16,7 @@ let session;
 let signInAttempt = 0;
 let likedSongs;
 let heartStation;
-let favoriteIds;
+let likedPage;
 let commentPage;
 const playlistOrders = new Map();
 const playlistWrites = new Map();
@@ -49,7 +49,7 @@ function saveSession(value) {
   else host.storage.remove(sessionKey);
   session = value;
   likedSongs = undefined;
-  favoriteIds = undefined;
+  likedPage = undefined;
   heartStation = undefined;
   commentPage = undefined;
   sharedBrowseReads.delete("daily");
@@ -343,14 +343,16 @@ const searches = {
 export async function search({ query, kind, offset = 0 }) {
   if (!Object.hasOwn(searches, kind) || !query.trim()) return {};
   const [type, field, total, convert] = searches[kind];
+  const auth = currentSession();
   const { result } = await api("/api/cloudsearch/pc", {
     s: query.trim(),
     type,
     offset,
     limit: pageSize,
     total: true,
-  });
-  const items = (result?.[field] || []).map(convert);
+  }, auth);
+  const resultAuth = session === auth ? auth : null;
+  const items = (result?.[field] || []).map((row) => convert(row, resultAuth));
   return {
     [kind]: items,
     more: items.length > 0 && offset + items.length < (result?.[total] ?? 0),
@@ -925,11 +927,21 @@ function editPlaylistTracks(id, op, trackIds) {
   return editPlaylist(id, async (pid, auth) => {
     const ids = Array.from(new Set(trackIds.map(numericId)));
     if (ids.length === 0) return;
+    const order = playlistOrders.get(pid);
     await updatePlaylistTracks(pid, op, ids, auth);
     if (session === auth) {
-      playlistOrders.delete(pid);
+      if (op === "del" && order && playlistOrders.get(pid) === order) {
+        // The host removes these same songs from its existing view.
+        const removed = new Set(ids.map(String));
+        playlistOrders.set(pid, {
+          ids: order.ids.filter((id) => !removed.has(id)),
+          visible: order.visible.filter((id) => !removed.has(id)),
+        });
+      } else {
+        playlistOrders.delete(pid);
+      }
       likedSongs = undefined;
-      favoriteIds = undefined;
+      likedPage = undefined;
     }
   });
 }
@@ -944,16 +956,15 @@ export function removeFromPlaylist({ id, trackIds }) {
 
 export function movePlaylistTrack({ id, from, to }) {
   return editPlaylist(id, async (pid, auth) => {
-    let order = playlistOrders.get(pid);
-    if (!order) {
-      await playlist({ id: pid });
-      order = playlistOrders.get(pid);
+    const order = playlistOrders.get(pid);
+    if (!order || !Number.isInteger(from) || !Number.isInteger(to) ||
+        !order.visible[from] || !order.visible[to]) {
+      fail("api", "This playlist changed. Reopen it before changing the order.");
     }
     const { playlist: row } = await playlistDetail(pid, auth, 0);
     const remote = (row.trackIds || []).map((track) => String(track.id));
     if (session !== auth) fail("signIn", "Sign in to NetEase Cloud Music.");
-    if (!order || !Number.isInteger(from) || !Number.isInteger(to) ||
-        !order.visible[from] || !order.visible[to] ||
+    if (playlistOrders.get(pid) !== order ||
         order.ids.length !== remote.length || remote.some((id, index) => id !== order.ids[index])) {
       fail("api", "This playlist changed. Reopen it before changing the order.");
     }
@@ -966,7 +977,7 @@ export function movePlaylistTrack({ id, from, to }) {
     await updatePlaylistTracks(pid, "update", ids.map(numericId), auth);
     if (session === auth) {
       playlistOrders.set(pid, { ids, visible });
-      favoriteIds = undefined;
+      likedPage = undefined;
     }
   });
 }
@@ -1024,7 +1035,7 @@ export async function like({ id, on }) {
   }, auth);
   if (session === auth) {
     likedSongs = undefined;
-    favoriteIds = undefined;
+    likedPage = undefined;
   }
 }
 
@@ -1037,21 +1048,11 @@ export async function likeEpisode({ id, on }) {
   }, auth);
 }
 
-// The favorites order, cached briefly so later pages of liked songs skip two requests.
-function favoriteTrackIds(auth, fresh) {
-  if (!fresh && favoriteIds?.auth === auth && favoriteIds.until > Date.now()) return favoriteIds.result;
-  const entry = { auth, until: Date.now() + 45_000 };
-  entry.result = (async () => {
-    const favorites = await favoritePlaylist(auth);
-    if (!favorites) return null;
-    const { playlist: row } = await playlistDetail(favorites.id, auth, 0);
-    return { pid: String(favorites.id), ids: (row.trackIds || []).map((track) => String(track.id)) };
-  })().catch((error) => {
-    if (favoriteIds === entry) favoriteIds = undefined;
-    throw error;
-  });
-  favoriteIds = entry;
-  return entry.result;
+async function favoriteTrackIds(auth) {
+  const favorites = await favoritePlaylist(auth);
+  if (!favorites) return [];
+  const { playlist: row } = await playlistDetail(favorites.id, auth, 0);
+  return (row.trackIds || []).map((track) => String(track.id));
 }
 
 async function favoritePlaylist(auth) {
@@ -1061,13 +1062,31 @@ async function favoritePlaylist(auth) {
 
 export async function liked({ offset = 0 }) {
   const auth = needSession();
-  // The built-in favorites playlist keeps the listener's order.
-  const favorites = await favoriteTrackIds(auth, offset === 0);
-  if (!favorites) return { tracks: [], more: false };
-  const ids = favorites.ids.slice(offset, offset + pageSize);
-  const tracks = await tracksById(ids, auth);
-  if (session !== auth) return { tracks: [], more: false };
-  return { tracks, more: offset + ids.length < favorites.ids.length };
+  // The host counts visible tracks. Keep their order and the raw ID cursor
+  // together until the next first page or a write invalidates the snapshot.
+  if (offset === 0 || likedPage?.auth !== auth) {
+    const page = { auth, tracks: [], consumed: 0 };
+    page.ids = favoriteTrackIds(auth).catch((error) => {
+      if (likedPage === page) likedPage = undefined;
+      throw error;
+    });
+    likedPage = page;
+  }
+  const page = likedPage;
+  const end = offset + pageSize;
+  // Only one request advances this snapshot at a time.
+  const next = (page.pending || Promise.resolve()).catch(() => {}).then(async () => {
+    const ids = await page.ids;
+    while (session === auth && page.tracks.length < end && page.consumed < ids.length) {
+      const batch = ids.slice(page.consumed, page.consumed + pageSize);
+      page.tracks.push(...await tracksById(batch, auth));
+      page.consumed += batch.length;
+    }
+    if (session !== auth) return { tracks: [], more: false };
+    return { tracks: page.tracks.slice(offset, end), more: end < page.tracks.length || page.consumed < ids.length };
+  });
+  page.pending = next;
+  return next;
 }
 
 function timedTranslations(lrc, lines) {
