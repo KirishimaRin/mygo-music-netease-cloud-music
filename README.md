@@ -1,6 +1,6 @@
 # 网易云音乐 · MyGo Music 插件
 
-[![Version](https://img.shields.io/badge/version-0.1.7-blue.svg)](plugin.json)
+[![Version](https://img.shields.io/badge/version-0.1.8-blue.svg)](plugin.json)
 [![Min Host Version](https://img.shields.io/badge/MyGo%20Music-%E2%89%A5%200.1.20-brightgreen.svg)](https://github.com/egoist/mygo-music)
 [![Language](https://img.shields.io/badge/language-JavaScript%20(ESM)-yellow.svg)](index.js)
 
@@ -79,7 +79,7 @@
 2. 进入 **设置 (Settings) → 插件 (Plugins) → 添加插件 (+)**。
 3. 选择以下任一方式进行安装：
    - **从 GitHub 安装（推荐）**：粘贴本插件的 GitHub 仓库地址。
-   - **从 Zip 文件安装**：选择对应版本的安装包，例如 `netease-cloud-music-0.1.7.zip`。
+   - **从 Zip 文件安装**：选择对应版本的安装包，例如 `netease-cloud-music-0.1.8.zip`。
    - **从文件夹安装（开发调试）**：选中包含 `plugin.json` 的项目根目录。
 4. 安装完成后，在插件列表中找到 **网易云音乐 (NetEase Cloud Music)**，点击 **登录**，使用手机网易云音乐 App 扫码并确认即可。
 
