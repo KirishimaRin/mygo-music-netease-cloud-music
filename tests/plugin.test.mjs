@@ -31,6 +31,44 @@ const song = (id) => ({ id, name: String(id) });
 const playlist = (id, userId) => ({ id, userId, name: String(id), subscribed: true });
 const trackIds = (result) => result.tracks.map((track) => Number(track.id));
 
+test("cloud search keeps the server offset across a page with no matches", async () => {
+  const plugin = await loadPlugin((path, { offset, limit }) => {
+    assert.equal(path, "/eapi/v1/cloud/get");
+    assert.equal(limit, 100);
+    return offset === 0
+      ? { data: [{ songId: 7, songName: "Other" }], hasMore: true }
+      : { data: [{ songId: 12, songName: "Cloud Only", simpleSong: { t: 1 }, cover: 0 }], hasMore: false };
+  });
+  const first = await plugin.cloudTracks({ query: "cloud" });
+  assert.deepEqual(first, { tracks: [], next: 1 });
+  const second = await plugin.cloudTracks({ query: "cloud", offset: first.next });
+  assert.deepEqual(trackIds(second), [12]);
+  assert.equal(second.tracks[0].url, "");
+  assert.equal(second.next, 0);
+});
+
+test("wiki keeps the mobile block order and maps native artist, song and playlist destinations", async () => {
+  const plugin = await loadPlugin((path, { extJson }) => {
+    assert.equal(path, "/eapi/link/page/parent/relation/construct/info");
+    assert.equal(JSON.parse(extJson).states.playingResource.current, 12);
+    return { data: { blocks: [
+      { positionCode: "songDetailNewSongWiki", rnData: { blocks: [
+        { blockInfo: { blockName: "Credits", wikiSubElementVos: [
+          { title: "Composer", wikiSubMetaVos: [{ text: "Artist", jumpUrl: "orpheus://nm/artist/home?id=45" }] },
+        ] } },
+        { blockInfo: { blockName: "Empty", wikiSubElementVos: [] } },
+      ] } },
+      { positionCode: "songWikiSimSongs", rnData: { simSongs: [song(24)] } },
+      { positionCode: "songWikiSimPlaylist", rnData: { simPlaylist: [{ playlistId: 56, name: "List" }] } },
+    ] } };
+  });
+  const { sections } = await plugin.songWiki({ trackId: "12" });
+  assert.deepEqual(sections.map((part) => part.title), ["Credits", "Similar Songs", "Related Playlists"]);
+  assert.equal(sections[0].entries[0].artistId, "45");
+  assert.equal(sections[1].tracks[0].id, "24");
+  assert.equal(sections[2].entries[0].playlistId, "56");
+});
+
 function playlistBackend(ids, unavailable = new Set()) {
   const backend = { ids, updates: [], detailBatches: [], favoriteReads: 0 };
   backend.handle = (path, data) => {

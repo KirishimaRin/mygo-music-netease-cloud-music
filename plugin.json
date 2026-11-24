@@ -82,8 +82,15 @@
       "icon": "playlist"
     },
     {
+      "title": "My Music Cloud",
+      "page": "music-cloud",
+      "view": "cloudTracks",
+      "icon": "cloud"
+    },
+    {
       "builtin": "savedAlbums",
-      "title": "Saved Albums"
+      "title": "Saved Albums",
+      "sidebarList": true
     }
   ]
 }
