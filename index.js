@@ -222,8 +222,8 @@ export async function signIn() {
 }
 
 function httpsImage(url) {
-  if (typeof url !== "string" || !url) return "";
-  const address = url.replace(/^http:/, "https:");
+  const address = (url || "").replace(/^http:/, "https:");
+  if (!address) return "";
   try {
     const image = new URL(address);
     if (image.protocol !== "https:" || !image.hostname.endsWith(".music.126.net")) return address;
@@ -496,14 +496,6 @@ export async function browse({ page }) {
     const tracks = await recent();
     return { title: t("Recently Played"), sections: [{ tracks, empty: t("No recently played songs.") }] };
   }
-  if (page === "music-cloud" || page.startsWith("music-cloud:")) {
-    const offset = Number(page.split(":")[1] || 0);
-    const { tracks, next } = await cloudTracks({ offset });
-    return { title: t("My Music Cloud"), sections: [
-      { tracks, empty: t("No songs in your music cloud.") },
-      ...(next ? [{ links: [{ title: t("Next Page"), page: `music-cloud:${next}` }] }] : []),
-    ] };
-  }
   if (page === "podcasts") return podcastBrowse();
   if (page === "playlist-categories") return playlistCategories();
   if (page === "podcast-categories") return podcastCategories();
@@ -527,30 +519,6 @@ export async function browse({ page }) {
   const sections = [{ playlists: charts.slice(0, 4) }];
   if (charts.length > 4) sections.push({ title: t("All Charts"), playlists: charts.slice(4) });
   return { title: t("Charts"), sections };
-}
-
-export async function cloudTracks({ offset = 0, query = "" }) {
-  const auth = needSession();
-  const needle = query.trim().toLowerCase();
-  const limit = needle ? 100 : pageSize;
-  const data = await api("/api/v1/cloud/get", { offset, limit }, auth);
-  if (session !== auth) fail("signIn", "Sign in to NetEase Cloud Music.");
-  const rows = data.data || [];
-  const tracks = rows.flatMap((row) => {
-    if (!row.songId) return [];
-    const song = row.simpleSong || {};
-    const track = toTrack({
-      ...song,
-      id: row.songId,
-      name: row.songName || song.name || row.fileName,
-      ar: song.ar?.length ? song.ar : row.artist ? [{ id: "", name: row.artist }] : [],
-      al: { id: "", ...song.al, name: row.album || song.al?.name || "", picUrl: song.al?.picUrl || row.cover },
-    });
-    if (song.t === 1 || !song.id) track.url = "";
-    const text = [track.name, row.artist, row.album, row.fileName, ...track.artists.map(({ name }) => name)];
-    return !needle || text.some((value) => typeof value === "string" && value.toLowerCase().includes(needle)) ? [track] : [];
-  });
-  return { tracks, next: data.hasMore && rows.length ? offset + rows.length : 0 };
 }
 
 async function playlistCategories() {
@@ -1224,102 +1192,6 @@ export async function comments({ trackId, offset = 0 }) {
     total: data?.totalCount || 0,
     more: !!data?.hasMore && rows.length > 0,
   };
-}
-
-// Translate the mobile page's rows and destinations into MyGo's presentation.
-function wikiEntry(title, { subtitle, text, imageUrl, href, artistId, playlistId, showId, style } = {}) {
-  const item = { title, subtitle, text, imageUrl: httpsImage(imageUrl), artistId, playlistId, showId, style };
-  if (typeof href !== "string") return item;
-  const artist = href.match(/^orpheus:\/\/nm\/artist\/home\?id=(\d+)(?:&|$)/);
-  const mv = href.match(/^orpheus:\/\/mv\/(\d+)(?:[?/]|$)/);
-  if (artist) item.artistId = artist[1];
-  if (mv) item.url = site + "/mv?id=" + mv[1];
-  if (href.startsWith(site + "/")) item.url = href;
-  if (href.startsWith("orpheus://rnpage?")) item.url = href;
-  return item;
-}
-
-function wikiDetails(data) {
-  return (data.blocks || []).map(({ blockCode, blockInfo: block }) => {
-    const title = block?.blockName || (blockCode === "wikiSubBlockEntertainmentVo" ? t("Film and TV") : "");
-    const entries = (block?.wikiSubElementVos || []).flatMap((row) => {
-      if (row.wikiSubMetaVos?.length) {
-        const style = row.pattern === 1 || row.pattern === 7 ? "tag" : "";
-        return row.wikiSubMetaVos.filter((meta) => meta.text).map((meta) =>
-          wikiEntry(meta.text, { subtitle: row.title, imageUrl: meta.imgUrl, href: meta.jumpUrl, style }));
-      }
-      if (row.type === "lrc" || row.type === "trans" || row.type === "roma") {
-        const text = (row.content || "").replace(/\[[^\]\r\n]+\]/g, "").trim();
-        return text ? [wikiEntry("", { text })] : [];
-      }
-      if (!(row.title || row.content)) return [];
-      return [wikiEntry(row.title || row.commenter || "", {
-        subtitle: row.subTitle || row.artists || row.publishTime || row.typeName,
-        text: row.content == null ? "" : String(row.content), imageUrl: row.imgUrl, href: row.jumpUrl,
-        style: row.pattern === 0 || row.pattern === 6 ? "fact" : "",
-      })];
-    });
-    if (block?.linkContent) entries.push(wikiEntry(block.linkContent, { href: block.linkUrl }));
-    return { title, description: block?.desc, entries };
-  }).filter((section) => section.title && (section.description || section.entries.length));
-}
-
-export async function songWiki({ trackId }) {
-  const songId = numericId(trackId);
-  const positionCode = "songWikiMainPosition";
-  const extJson = JSON.stringify({ states: { playingResource: { current: songId, scene: "songWiki" } } });
-  const auth = currentSession();
-  const { data } = await api("/api/link/page/parent/relation/construct/info", { positionCode, extJson }, auth);
-  if (session !== auth) return { sections: [] };
-  const sections = [];
-  for (const { positionCode: part, rnData: row } of data?.blocks || []) {
-    if (!row) continue;
-    switch (part) {
-      case "songWikiFirstListen": {
-        const listen = row.firstListen;
-        const play = row.totalPlay;
-        if (row.moduleTitle && (listen || play)) {
-          const entries = [
-            listen?.moduleTitle && wikiEntry(listen.moduleTitle, { text: listen.time || listen.period, href: row.targetUrl }),
-            play?.moduleTitle && wikiEntry(play.moduleTitle, { text: play.text, href: row.targetUrl }),
-          ].filter(Boolean);
-          sections.push({ title: row.moduleTitle, entries });
-        }
-        break;
-      }
-      case "songDetailNewSongWiki":
-        sections.push(...wikiDetails(row));
-        break;
-      case "songWikiArtistInfo":
-        sections.push({ title: t("About the Artist"), entries: (row.artists || []).map((artist) => wikiEntry(artist.artistName, {
-          text: artist.briefDesc, imageUrl: artist.artistCoverUrl, artistId: String(artist.artistId),
-        })) });
-        break;
-      case "songWikiSimSongs":
-      case "songWikiMoreVersions": {
-        const similar = part === "songWikiSimSongs";
-        const songs = similar ? row.simSongs : row.moreVersionSongs;
-        const tracks = (songs || []).filter((song) => song.id && song.name && !song.isDirty).map((song) => toTrack({
-          ...song,
-          artists: song.artists || (song.artistNames ? [{ id: "", name: [].concat(song.artistNames).join(" / ") }] : []),
-        }));
-        sections.push({ title: t(similar ? "Similar Songs" : "More Versions"), tracks });
-        break;
-      }
-      case "songWikiSimPlaylist":
-        sections.push({ title: t("Related Playlists"), entries: (row.simPlaylist || []).filter((list) => list.playlistId && list.name).map((list) =>
-          wikiEntry(list.name, { imageUrl: list.coverImgUrl, playlistId: String(list.playlistId) })) });
-        break;
-      case "songWikiPodcast":
-        sections.push({ title: t("Related Podcasts"), entries: (row.simPodCasts || []).flatMap((show) => {
-          const title = show.name || show.title;
-          const id = show.radioId || show.djRadioId;
-          return title ? [wikiEntry(title, { imageUrl: show.coverUrl || show.picUrl, showId: id ? String(id) : "", href: show.jumpUrl })] : [];
-        }) });
-        break;
-    }
-  }
-  return { sections: sections.filter((part) => part.description || part.entries?.length || part.tracks?.length) };
 }
 
 export async function postComment({ trackId, text }) {
